@@ -21607,3 +21607,284 @@ Then I’ll run the git init/commit/push steps for you.
 
 ---
 
+_**User**_
+
+mbarlo10-web, strategic-watch-ai
+
+---
+
+_**Agent (model default, mode Agent)**_
+
+<think><details><summary>Thought Process</summary>
+**Setting up a git repository**
+
+I need to initialize a git repository with `git init`, then follow it up with `add` and `commit`. I have to check if the repository already exists since the user didn't specify. I suspect it's likely not created yet, so I can use `gh repo create`. I’ll need git write permissions, and I should ensure that files like `.env` are ignored, which is already handled by `.gitignore`. Plus, I should confirm if `gh` is authenticated before running these commands sequentially.</details></think>
+
+---
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/markbarlow/Strategic Watch AI" && git init && git add . && git commit --trailer "Made-with: Cursor" -m "Initial commit: Strategic Watch AI v1"</summary>
+
+```bash
+cd "/Users/markbarlow/Strategic Watch AI" && git init && git add . && git commit --trailer "Made-with: Cursor" -m "Initial commit: Strategic Watch AI v1"
+```
+
+```
+/Users/markbarlow/Strategic Watch AI/.git/hooks/: Operation not permitted
+
+```
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/markbarlow/Strategic Watch AI" && git init && git add . && git commit --trailer "Made-with: Cursor" -m "Initial commit: Strategic Watch AI v1"</summary>
+
+```bash
+cd "/Users/markbarlow/Strategic Watch AI" && git init && git add . && git commit --trailer "Made-with: Cursor" -m "Initial commit: Strategic Watch AI v1"
+```
+
+```
+Initialized empty Git repository in /Users/markbarlow/Strategic Watch AI/.git/
+[main (root-commit) 109e522] Initial commit: Strategic Watch AI v1
+ 25 files changed, 25526 insertions(+)
+ create mode 100644 .cursorindexingignore
+ create mode 100644 .gitignore
+ create mode 100644 .specstory/.gitignore
+ create mode 100644 .specstory/history/2026-03-11_02-54Z-strategic-watch-ai-project-overview.md
+ create mode 100644 .streamlit/config.toml
+ create mode 100644 README.md
+ create mode 100644 ai_analysis.py
+ create mode 100644 ai_pipeline/__init__.py
+ create mode 100644 ai_pipeline/ai_analysis.py
+ create mode 100644 ai_pipeline/rag_store.py
+ create mode 100644 ai_pipeline/risk_scoring.py
+ create mode 100644 brief_generator.py
+ create mode 100644 briefing/__init__.py
+ create mode 100644 briefing/brief_generator.py
+ create mode 100644 dashboard/__init__.py
+ create mode 100644 dashboard/app.py
+ create mode 100644 dashboard_app.py
+ create mode 100644 dashboard_template.html
+ create mode 100644 ingestion/__init__.py
+ create mode 100644 ingestion/defense_rss.py
+ create mode 100644 ingestion/news_ingestion.py
+ create mode 100644 ingestion/relevance_filter.py
+ create mode 100644 news_ingestion.py
+ create mode 100644 requirements.txt
+ create mode 100644 test_app.py
+
+```
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/markbarlow/Strategic Watch AI" && gh repo create mbarlo10-web/strategic-watch-ai --private --source=. --remote=origin --push</summary>
+
+```bash
+cd "/Users/markbarlow/Strategic Watch AI" && gh repo create mbarlo10-web/strategic-watch-ai --private --source=. --remote=origin --push
+```
+
+```
+--: gh: command not found
+
+```
+</details>
+</tool-use>
+
+---
+
+Great, here’s where we are and what you need to do next:
+
+### 1. Local git repo
+
+I’ve already:
+
+- Initialized git in `Strategic Watch AI`.
+- Staged all files and created the first commit:
+
+```bash
+Initial commit: Strategic Watch AI v1
+```
+
+So your project is now a clean git repo on your machine.
+
+### 2. Create the GitHub repo
+
+Because the `gh` CLI is not available in this environment, you’ll create the GitHub repo in your browser:
+
+1. Go to GitHub and create a new repo named **`strategic-watch-ai`** under your user **`mbarlo10-web`**.
+2. Do **not** add a README, `.gitignore`, or license there (we already have them locally).
+
+GitHub will then show you a set of commands; you’ll use the middle block:
+
+```bash
+cd "/Users/markbarlow/Strategic Watch AI"
+git remote add origin https://github.com/mbarlo10-web/strategic-watch-ai.git
+git branch -M main
+git push -u origin main
+```
+
+Run those three commands in your terminal on your Mac (where you normally run `streamlit`).
+
+After that, your code is fully pushed to GitHub.
+
+### 3. Deploy to Streamlit Cloud
+
+Once the repo is on GitHub:
+
+1. Go to Streamlit Cloud (`https://share.streamlit.io`).
+2. Connect your GitHub account if you haven’t already.
+3. Choose the repo **`mbarlo10-web/strategic-watch-ai`**.
+4. Set **Main file path** to:
+
+```text
+dashboard_app.py
+```
+
+5. Click **Deploy**.
+
+Streamlit will build the app from that file and you’ll get a public URL you can use in your portfolio and posts.
+
+If you’d like, paste the GitHub URL here after you push (and optionally the Streamlit URL) and I can give you a short “project blurb” you can reuse in your README, LinkedIn, or portfolio.
+
+---
+
+_**User**_
+
+give me a description for the github repo
+
+---
+
+_**Agent (model default, mode Agent)**_
+
+<think><details><summary>Thought Process</summary>
+**Creating repo description**
+
+I'm focusing on crafting a concise repository description. Since the user wants it short, I'll keep it to one or two sentences. I'll provide a catchy tagline, then consider suggesting a longer README blurb, but that might not be needed right now. I want to make sure I deliver exactly what the user is looking for without any unnecessary fluff. Let's keep it straightforward and effective!</details></think>
+
+---
+
+Here’s a concise GitHub description and a slightly longer tagline you can use:
+
+- **Short description (GitHub):**  
+  `AI-powered geopolitical risk dashboard that ingests defense + global news, scores escalation risk, and generates executive-ready intelligence briefs.`
+
+- **Optional longer tagline (README/overview):**  
+  `Strategic Watch AI is an OSINT pipeline and Palantir-style dashboard that fuses defense RSS feeds, NewsAPI, and LLM analysis into a Top 5 global risk ranking, conflict map, and executive brief for decision-makers.`
+
+---
+
+_**User**_
+
+
+
+---
+
+_**Agent (model default, mode Agent)**_
+
+<think><details><summary>Thought Process</summary>
+**Providing Git commands**
+
+The user seems to want confirmation of the next steps since they've created an empty repo on GitHub. I see they shared a screenshot of the GitHub page, so I need to provide them with the exact git commands to push their existing local repository. I should keep my response concise and to the point, just outlining the essential commands. After that, I'll mention deploying with Streamlit. Let's get this done!</details></think>
+
+---
+
+Perfect—that GitHub screen is exactly what we need.
+
+### 1. Push your existing repo to GitHub
+
+In your local terminal on your Mac (not inside Streamlit), run:
+
+```bash
+cd "/Users/markbarlow/Strategic Watch AI"
+
+git remote add origin https://github.com/mbarlo10-web/strategic-watch-ai.git
+git branch -M main
+git push -u origin main
+```
+
+After this, refresh the repo page; you should see all your files.
+
+### 2. Deploy to Streamlit Cloud
+
+Once the code is on GitHub:
+
+1. Go to `https://share.streamlit.io`.
+2. Connect your GitHub if needed.
+3. Choose repo `mbarlo10-web/strategic-watch-ai`.
+4. Set **Main file path** to `dashboard_app.py`.
+5. Click **Deploy**.
+
+If you paste the final GitHub URL and the Streamlit app URL here, I can suggest a polished one‑paragraph project blurb you can use in your portfolio or LinkedIn post.
+
+---
+
+_**User**_
+
+does the readme mention that this is a RAG/
+
+---
+
+_**Agent (model default, mode Agent)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/markbarlow/Strategic Watch AI/README.md</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/markbarlow/Strategic Watch AI/README.md</summary>
+
+</details>
+
+</tool-use>
+
+---
+
+Not clearly before, but it does now.
+
+I’ve updated the README to explicitly call out the RAG piece:
+
+- Under **“What It Does”** there’s a new bullet:  
+  - **“Semantic search (RAG) — A retrieval-augmented search index over all analyzed articles using ChromaDB + OpenAI embeddings, powering theater-aware ‘search the intel’ queries.”**
+- Under **“Technology Stack”** there’s now a **RAG** line:  
+  - `RAG: ChromaDB persistent vector store + OpenAI text-embedding-3-small`
+
+So anyone reading the repo will see that it’s a retrieval‑augmented system, not just a one‑shot summarizer.
+
+---
+
+_**User**_
+
+can you push this
+
+---
+
+_**Agent (model default, mode Agent)**_
+
+<think><details><summary>Thought Process</summary>
+**Pushing to GitHub**
+
+I need to push to Git. It seems there's already a git repository, but maybe the remote isn't set up yet. I remember seeing a screenshot of a quick setup on GitHub, but I'm not sure if the remote was added and if it's been pushed locally. I can set the remote and push using git write and network permissions. First, I'll set the remote URL to https://github.com/mbarlo10-web/strategic-watch-ai.git, then push the main branch. I'll use the Shell tool to do this.</details></think>
+
+---
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/markbarlow/Strategic Watch AI" && git remote -v || echo 'NO_REMOTE'</summary>
+
+```bash
+cd "/Users/markbarlow/Strategic Watch AI" && git remote -v || echo 'NO_REMOTE'
+```
+</details>
+</tool-use>
+
+---
+

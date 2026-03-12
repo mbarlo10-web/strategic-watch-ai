@@ -29,6 +29,7 @@ The system aggregates open-source and curated defense reporting, scores items by
 - **Conflict map** — Visual map of monitored theaters with risk levels (High / Medium / Low).
 - **Escalation watch** — Items flagged for escalation potential.
 - **Confidence and trend** — Per-item confidence from the AI; overall trend (Escalating / Stable / De-escalating) from the run.
+- **Semantic search (RAG)** — A retrieval-augmented search index over all analyzed articles using ChromaDB + OpenAI embeddings, powering theater-aware “search the intel” queries.
 
 ---
 
@@ -79,7 +80,8 @@ Defense News & Department of War RSS are used as primary signals; NewsAPI provid
 
 - **Language:** Python  
 - **AI:** OpenAI API (classification, summarization, briefing)  
-- **Data:** Defense News RSS (`feedparser`), NewsAPI  
+- **Data:** Defense News + Dept of War + curated geopolitical RSS (`feedparser`/XML), NewsAPI  
+- **RAG:** ChromaDB persistent vector store + OpenAI `text-embedding-3-small`  
 - **UI:** Streamlit, Plotly (conflict map)  
 - **Processing:** Pandas, Requests, security relevance filter, risk scoring module  
 
