@@ -1,32 +1,43 @@
+# Strategic Watch AI — Requirements
+# Compatible with Python 3.11 and Streamlit Cloud
+# ──────────────────────────────────────────────────
+
+# Core
 python-dotenv
 requests
 pandas
 numpy
 
-openai
+# AI / OpenAI
+openai>=1.0.0
 tiktoken
 
+# Vector search — use ONE not both; faiss-cpu conflicts with chromadb on cloud
 chromadb
-faiss-cpu
+# faiss-cpu
 
+# Web / parsing
 beautifulsoup4
 lxml
 feedparser
 
-# Streamlit + Altair versions known to work together on Streamlit Cloud
-streamlit==1.29.0
-altair==4.2.2
+# Streamlit — do NOT pin altair separately; let streamlit resolve it
+streamlit>=1.32.0
 
+# Visualization
 plotly
 
-Pillow==9.5.0
+# Pillow — 10.x has prebuilt wheels for 3.11; 9.5.0 does not
+Pillow>=10.0.0
 
+# API (comment out if you're not running FastAPI separately)
 fastapi
 uvicorn
 
-spacy
+# NLP — heavy compiled package; comment out if not actively used
+# spacy
 
+# Utilities
 python-dateutil
 httpx
-
-pydantic
+pydantic>=2.0.0
