@@ -84,8 +84,16 @@ st.set_page_config(
 st.markdown(
     """
 <style>
-  #MainMenu { display: none; }
-  footer { display: none; }
+  /* Hide Streamlit chrome (header, toolbar, menu, footer) for full-bleed dashboard */
+  header { visibility: hidden; }
+  #MainMenu { visibility: hidden; }
+  footer { visibility: hidden; }
+  [data-testid="stHeader"] { display: none; }
+  [data-testid="stToolbar"] { display: none; }
+  [data-testid="stDecoration"] { display: none; }
+  [data-testid="stStatusWidget"] { display: none; }
+
+  /* Remove internal padding so the HTML dashboard can sit flush */
   .block-container { padding: 0 !important; max-width: 100% !important; }
   [data-testid="stAppViewContainer"] { padding: 0 !important; }
 </style>
