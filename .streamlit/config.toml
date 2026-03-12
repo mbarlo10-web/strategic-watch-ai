@@ -1,0 +1,15 @@
+[server]
+headless = true
+port = 8501
+# Fix macOS "Cannot start fsevents stream" watcher crash by using polling.
+fileWatcherType = "poll"
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+base = "dark"
+backgroundColor = "#05070f"
+secondaryBackgroundColor = "#080a14"
+textColor = "#e8f2ff"
+font = "monospace"

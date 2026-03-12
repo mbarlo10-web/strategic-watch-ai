@@ -1,0 +1,1456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Strategic Watch AI — Analyst Glass</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600;700&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #05070f;
+  --bg2: #080a14;
+  --bg3: #0a0d1a;
+  --border: rgba(0,210,230,0.1);
+  --border2: rgba(0,210,230,0.06);
+  --teal: #00d4e8;
+  --teal-dim: rgba(0,212,232,0.4);
+  --teal-glow: rgba(0,212,232,0.15);
+  --red: #ff3355;
+  --orange: #ff8800;
+  --green: #00cc77;
+  --text-primary: #e8f2ff;
+  --text-secondary: rgba(180,210,230,0.75);
+  --text-dim: rgba(120,160,190,0.45);
+  --mono: 'IBM Plex Mono', monospace;
+  --display: 'Orbitron', monospace;
+  --body: 'Rajdhani', sans-serif;
+}
+
+html, body { height: 100%; overflow: hidden; }
+
+body {
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--body);
+  font-size: 18px;
+  background-image:
+    radial-gradient(ellipse 70% 50% at 15% 15%, rgba(0,100,180,0.07) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 70% at 85% 85%, rgba(80,30,160,0.05) 0%, transparent 60%);
+  margin-top: 46px; /* keep clear of Streamlit header bar */
+}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0,212,232,0.2); border-radius: 2px; }
+
+/* ══════════════ HEADER ══════════════ */
+.header {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  height: 60px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 28px;
+  background: rgba(5,7,15,0.92);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(20px);
+}
+
+.logo { display: flex; align-items: center; gap: 14px; }
+.logo-mark {
+  width: 36px; height: 36px;
+  border: 1px solid rgba(0,212,232,0.35);
+  display: grid; grid-template-columns: 1fr 1fr; gap: 3px; padding: 6px;
+  background: rgba(0,212,232,0.04);
+}
+.logo-mark span { background: rgba(0,212,232,0.55); border-radius: 1px; }
+.logo-mark span:nth-child(4) { background: rgba(0,212,232,0.2); }
+.logo-text {}
+.logo-title {
+  font-family: var(--display); font-size: 16px; font-weight: 800;
+  color: var(--text-primary); letter-spacing: 3px;
+}
+.logo-sub {
+  font-family: var(--mono); font-size: 11px;
+  color: var(--teal-dim); letter-spacing: 3px; margin-top: 2px;
+}
+
+.header-kpis { display: flex; gap: 28px; align-items: center; }
+.kpi { text-align: center; }
+.kpi-val {
+  font-family: var(--display); font-size: 26px; font-weight: 900;
+  color: var(--teal); line-height: 1.1;
+}
+.kpi-val.danger { color: var(--red); }
+.kpi-val.warn { color: var(--orange); }
+.kpi-val.trend {
+  font-size: 15px; letter-spacing: 2px; color: var(--red);
+  margin-top: 3px;
+}
+.kpi-label {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 2px;
+  color: var(--text-dim); text-transform: uppercase; margin-top: 3px;
+}
+
+.header-right { display: flex; align-items: center; gap: 12px; }
+.pill {
+  padding: 4px 12px; border-radius: 2px;
+  font-family: var(--mono); font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
+}
+.pill-live {
+  background: rgba(0,200,100,0.1); border: 1px solid rgba(0,200,100,0.3); color: #00cc77;
+}
+.pill-live::before { content: '● '; }
+.pill-alert {
+  background: rgba(255,51,85,0.1); border: 1px solid rgba(255,51,85,0.3); color: #ff4466;
+  animation: pulse-border 2s ease-in-out infinite;
+}
+@keyframes pulse-border {
+  0%,100% { border-color: rgba(255,51,85,0.3); }
+  50% { border-color: rgba(255,51,85,0.7); }
+}
+.run-btn {
+  padding: 8px 18px; background: rgba(0,212,232,0.03);
+  border: 1px solid rgba(0,212,232,0.25); color: var(--teal-dim);
+  font-family: var(--body); font-weight: 600; font-size: 10px;
+  letter-spacing: 2px; cursor: default; text-transform: uppercase;
+  border-radius: 2px; pointer-events: none;
+}
+
+/* ── WORLD CLOCK ── */
+.world-clock {
+  display: flex; gap: 0; align-items: stretch;
+  border: 1px solid rgba(0,212,232,0.15); border-radius: 2px; overflow: hidden;
+}
+.wc-city {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 4px 11px; background: rgba(0,212,232,0.04);
+  border-right: 1px solid rgba(0,212,232,0.1); min-width: 66px;
+}
+.wc-city:last-child { border-right: none; }
+.wc-city:first-child { background: rgba(0,212,232,0.09); }
+.wc-time {
+  font-family: var(--mono); font-size: 14px; font-weight: 600;
+  color: var(--teal); letter-spacing: 1px; line-height: 1;
+}
+.wc-label {
+  font-family: var(--mono); font-size: 9px; letter-spacing: 2px;
+  color: var(--text-dim); text-transform: uppercase; margin-top: 3px;
+}
+
+/* ══════════════ LAYOUT ══════════════ */
+.layout {
+  display: grid;
+  /* widen left & right columns, slightly reduce center to reclaim unused map whitespace */
+  grid-template-columns: 260px 0.9fr 420px;
+  grid-template-rows: calc(100vh - 60px);
+  margin-top: 60px;
+  height: calc(100vh - 60px);
+  overflow: hidden;
+}
+
+/* ── LEFT NAV ── */
+.nav {
+  background: var(--bg2);
+  border-right: 1px solid var(--border2);
+  display: flex; flex-direction: column;
+  overflow-y: auto;
+}
+.nav-section { padding: 16px 14px; border-bottom: 1px solid var(--border2); }
+.nav-head {
+  font-family: var(--mono); font-size: 11px; letter-spacing: 3px;
+  color: var(--text-dim); text-transform: uppercase; margin-bottom: 10px;
+}
+.nav-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px; margin-bottom: 4px;
+  font-weight: 600; font-size: 15px; letter-spacing: 0.5px; color: rgba(140,170,190,0.6);
+  cursor: pointer; transition: all 0.15s; border-left: 2px solid transparent;
+  border-radius: 0 2px 2px 0;
+}
+.nav-item:hover { color: var(--text-primary); background: rgba(0,212,232,0.05); border-left-color: rgba(0,212,232,0.4); }
+.nav-item.active { color: var(--teal); background: rgba(0,212,232,0.07); border-left-color: var(--teal); }
+.nav-badge {
+  font-family: var(--mono); font-size: 11px; padding: 3px 8px;
+  border-radius: 2px; letter-spacing: 1px;
+}
+.nb-high { background: rgba(255,51,85,0.15); color: var(--red); border: 1px solid rgba(255,51,85,0.3); }
+.nb-med { background: rgba(255,136,0,0.12); color: var(--orange); border: 1px solid rgba(255,136,0,0.3); }
+.nb-low { background: rgba(0,204,119,0.12); color: var(--green); border: 1px solid rgba(0,204,119,0.3); }
+.nav-count { font-family: var(--mono); font-size: 13px; color: var(--teal-dim); margin-left: 6px; font-weight: 600; }
+.nav-count::before { content: '('; }
+.nav-count::after { content: ')'; }
+.nav-item.active .nav-count { color: var(--teal); }
+
+.nav-controls { padding: 14px; margin-top: auto; border-top: 1px solid var(--border2); }
+.nav-run-btn {
+  width: 100%; padding: 10px; background: rgba(0,212,232,0.03);
+  border: 1px solid rgba(0,212,232,0.2); color: var(--teal-dim);
+  font-family: var(--body); font-weight: 600; font-size: 12px; letter-spacing: 2px;
+  cursor: default; text-transform: uppercase;
+  pointer-events: none;
+}
+
+.nav-sources { padding: 12px 14px; }
+.nav-source-item {
+  font-family: var(--mono); font-size: 13px; color: var(--text-dim);
+  letter-spacing: 1px; padding: 5px 0; border-bottom: 1px solid var(--border2);
+  display: flex; align-items: center; gap: 8px;
+}
+.nav-src-count { color: var(--teal-dim); font-weight: 600; margin-left: 4px; font-size: 13px; }
+.src-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+.src-dot.t1 { background: var(--teal); box-shadow: 0 0 4px var(--teal); }
+.src-dot.t2 { background: var(--text-dim); }
+
+/* ══════════════ MAIN ══════════════ */
+.main { overflow-y: auto; padding: 22px 24px; }
+
+/* ── section headers ── */
+.section-head {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 16px; margin-top: 4px;
+}
+.section-head h2 {
+  font-family: var(--mono); font-size: 9px; letter-spacing: 4px;
+  color: var(--teal-dim); text-transform: uppercase; white-space: nowrap;
+  font-weight: 400;
+}
+.section-head::after {
+  content: ''; flex: 1; height: 1px;
+  background: linear-gradient(90deg, rgba(0,212,232,0.2), transparent);
+}
+
+/* ── MAP ── */
+.map-container {
+  position: relative; border: 1px solid var(--border);
+  background: #070c18; margin-bottom: 22px;
+  border-radius: 3px; overflow: hidden;
+}
+.map-canvas { width: 100%; display: block; }
+.map-legend {
+  position: absolute; bottom: 10px; left: 14px;
+  display: flex; gap: 14px; align-items: center;
+}
+.map-legend-item {
+  display: flex; align-items: center; gap: 5px;
+  font-family: var(--mono); font-size: 9px; color: var(--text-dim); letter-spacing: 1px;
+}
+.legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+.map-label {
+  position: absolute; top: 10px; left: 14px;
+  font-family: var(--mono); font-size: 9px; color: var(--teal-dim); letter-spacing: 3px;
+}
+.map-label-right {
+  position: absolute; top: 10px; right: 14px;
+  font-family: var(--mono); font-size: 9px; color: var(--text-dim); letter-spacing: 2px;
+}
+
+/* ── RISK CARDS ── */
+.risk-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px; }
+.risk-card {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 3px; padding: 14px 18px;
+  display: grid; grid-template-columns: 28px 1fr 52px;
+  gap: 14px; align-items: center;
+  cursor: pointer; transition: all 0.2s;
+  position: relative; overflow: hidden;
+}
+.risk-card::before {
+  content: ''; position: absolute; top: 0; left: 0; bottom: 0; width: 3px;
+}
+.risk-card.r-high::before { background: linear-gradient(180deg, #ff3355, #ff6688); }
+.risk-card.r-med::before  { background: linear-gradient(180deg, #ff8800, #ffbb44); }
+.risk-card.r-low::before  { background: linear-gradient(180deg, #00cc77, #44ffaa); }
+.risk-card:hover { background: rgba(0,212,232,0.04); border-color: rgba(0,212,232,0.2); }
+.risk-card:hover::after {
+  content: ''; position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+  background: linear-gradient(90deg, transparent 60%, rgba(0,212,232,0.03));
+  pointer-events: none;
+}
+
+.rank {
+  font-family: var(--display); font-size: 12px; font-weight: 700;
+  color: rgba(0,212,232,0.2); line-height: 1;
+}
+.risk-info {}
+.risk-title {
+  font-size: 20px; font-weight: 800; color: var(--text-primary);
+  line-height: 1.45; margin-bottom: 10px; letter-spacing: 0.4px;
+}
+.risk-meta {
+  display: flex; gap: 10px; flex-wrap: wrap;
+  font-family: var(--mono); font-size: 9px; color: var(--text-dim); letter-spacing: 1px;
+}
+.risk-meta .rl-high { color: var(--red); font-weight: 500; }
+.risk-meta .rl-med  { color: var(--orange); font-weight: 500; }
+.risk-meta .rl-low  { color: var(--green); font-weight: 500; }
+
+/* SVG score ring */
+.score-ring {
+  width: 48px; height: 48px; position: relative;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.score-ring svg { position: absolute; top: 0; left: 0; transform: rotate(-90deg); }
+.score-text {
+  font-family: var(--display); font-size: 10px; color: var(--teal);
+  font-weight: 700; position: relative; z-index: 1; letter-spacing: 0;
+}
+
+/* ══════════════ RIGHT PANEL ══════════════ */
+.right-panel {
+  background: rgba(5,7,15,0.6);
+  border-left: 1px solid var(--border2);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+
+/* tab bar */
+.panel-tabs {
+  display: flex; border-bottom: 1px solid var(--border2); flex-shrink: 0;
+}
+.panel-tab {
+  flex: 1; padding: 12px 8px; text-align: center;
+  font-family: var(--mono); font-size: 9px; letter-spacing: 2px;
+  color: var(--text-dim); cursor: pointer; transition: all 0.15s;
+  border-bottom: 2px solid transparent; text-transform: uppercase;
+  background: none; border-top: none; border-left: none; border-right: none;
+}
+.panel-tab:hover { color: var(--text-secondary); }
+.panel-tab.active { color: var(--teal); border-bottom-color: var(--teal); }
+
+.panel-body { flex: 1; overflow-y: auto; padding: 18px 16px; }
+.panel-section { display: none; }
+.panel-section.active { display: block; }
+
+/* brief */
+.brief-headline {
+  font-size: 22px; font-weight: 900; color: var(--text-primary);
+  line-height: 1.4; margin-bottom: 12px; letter-spacing: 0.3px;
+}
+.brief-date {
+  font-family: var(--mono); font-size: 9px; color: var(--text-dim);
+  letter-spacing: 2px; margin-bottom: 14px;
+}
+.brief-body {
+  font-size: 16px; font-weight: 500; color: var(--text-secondary);
+  line-height: 1.75; margin-bottom: 16px;
+}
+.brief-sub-head {
+  font-family: var(--mono); font-size: 9px; color: var(--teal-dim);
+  letter-spacing: 3px; text-transform: uppercase;
+  margin: 14px 0 8px; padding-bottom: 6px;
+  border-bottom: 1px solid var(--border2);
+}
+.brief-region {
+  padding: 10px 12px; margin-bottom: 8px;
+  background: rgba(255,255,255,0.02); border: 1px solid var(--border2);
+  border-radius: 2px;
+}
+.brief-region-name {
+  font-size: 12px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;
+}
+.brief-region-text { font-size: 12px; font-weight: 500; color: var(--text-secondary); line-height: 1.6; }
+.brief-region-name.high { color: #ff5577; }
+.brief-region-name.med  { color: #ffaa33; }
+
+/* escalation */
+.escalation-item {
+  display: flex; gap: 12px; padding: 10px 12px; margin-bottom: 7px;
+  background: rgba(255,51,85,0.04); border: 1px solid rgba(255,51,85,0.12);
+  border-radius: 2px;
+}
+.esc-icon { color: var(--red); font-size: 10px; margin-top: 2px; flex-shrink: 0; font-weight: 700; }
+.esc-text { font-size: 13px; font-weight: 600; color: var(--text-secondary); line-height: 1.55; }
+.escalation-item.med { background: rgba(255,136,0,0.04); border-color: rgba(255,136,0,0.12); }
+.escalation-item.med .esc-icon { color: var(--orange); }
+
+/* confidence card */
+.conf-card {
+  background: rgba(0,212,232,0.04); border: 1px solid var(--border);
+  border-radius: 3px; padding: 14px 16px; margin-bottom: 14px;
+  display: flex; align-items: center; gap: 16px;
+}
+.conf-level {
+  font-family: var(--display); font-size: 20px; font-weight: 700;
+  color: var(--teal); letter-spacing: 2px;
+}
+.conf-details { font-family: var(--mono); font-size: 9px; color: var(--text-dim); line-height: 2; letter-spacing: 1px; }
+
+/* ── RAG SECTION ── */
+.rag-search-box {
+  display: flex; gap: 8px; margin-bottom: 14px;
+}
+.rag-input {
+  flex: 1; background: rgba(0,212,232,0.04);
+  border: 1px solid rgba(0,212,232,0.25); color: var(--text-primary);
+  padding: 9px 14px; font-family: var(--mono); font-size: 11px; letter-spacing: 1px;
+  border-radius: 2px; outline: none; transition: all 0.2s;
+}
+.rag-input:focus { border-color: rgba(0,212,232,0.6); background: rgba(0,212,232,0.07); }
+.rag-input::placeholder { color: var(--text-dim); }
+.rag-btn {
+  padding: 9px 14px; background: rgba(0,212,232,0.1);
+  border: 1px solid rgba(0,212,232,0.3); color: var(--teal);
+  font-family: var(--mono); font-size: 10px; letter-spacing: 2px;
+  cursor: pointer; border-radius: 2px; transition: all 0.2s; white-space: nowrap;
+  font-weight: 500;
+}
+.rag-btn:hover { background: rgba(0,212,232,0.2); }
+
+.rag-hint {
+  font-family: var(--mono); font-size: 9px; color: var(--text-dim);
+  letter-spacing: 1px; margin-bottom: 14px; line-height: 1.6;
+}
+
+.rag-results { display: flex; flex-direction: column; gap: 7px; }
+.rag-result {
+  padding: 10px 12px; background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border2); border-radius: 2px;
+  transition: all 0.15s; cursor: pointer;
+}
+.rag-result:hover { border-color: rgba(0,212,232,0.2); background: rgba(0,212,232,0.03); }
+.rag-result-title {
+  font-size: 13px; font-weight: 700; color: var(--text-primary);
+  margin-bottom: 5px; line-height: 1.35;
+}
+.rag-result-meta {
+  display: flex; gap: 10px; flex-wrap: wrap;
+  font-family: var(--mono); font-size: 9px; color: var(--text-dim); letter-spacing: 1px;
+}
+.rag-result-meta .rl-high { color: var(--red); }
+.rag-result-meta .rl-med  { color: var(--orange); }
+.rag-read { font-family: var(--mono); font-size: 9px; color: var(--teal-dim); letter-spacing: 1px; margin-top: 5px; display: inline-block; }
+.rag-read:hover { color: var(--teal); }
+
+.rag-empty {
+  font-family: var(--mono); font-size: 10px; color: var(--text-dim);
+  letter-spacing: 2px; text-align: center; padding: 24px 0; line-height: 2;
+}
+
+/* theater mini map */
+.theater-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 22px; }
+.theater-card {
+  background: rgba(255,255,255,0.02); border: 1px solid var(--border2);
+  border-radius: 3px; padding: 10px 12px; cursor: pointer; transition: all 0.2s;
+}
+.theater-card:hover { border-color: rgba(0,212,232,0.2); background: rgba(0,212,232,0.03); }
+.theater-name { font-size: 11px; font-weight: 700; color: var(--text-secondary); letter-spacing: 0.5px; margin-bottom: 7px; }
+.theater-bar { height: 3px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; margin-bottom: 5px; }
+.theater-fill { height: 100%; border-radius: 2px; }
+.theater-fill.high { background: linear-gradient(90deg, #ff3355, #ff6688); }
+.theater-fill.med  { background: linear-gradient(90deg, #ff8800, #ffcc44); }
+.theater-fill.low  { background: linear-gradient(90deg, #00cc77, #44ffaa); }
+.theater-lbl { font-family: var(--mono); font-size: 9px; color: var(--text-dim); letter-spacing: 1px; }
+
+/* divider */
+.divider { height: 1px; background: var(--border2); margin: 14px 0; }
+
+/* bottom ticker */
+.ticker {
+  position: fixed; bottom: 0; left: 0; right: 0; height: 26px;
+  background: rgba(5,7,15,0.95); border-top: 1px solid var(--border2);
+  display: flex; align-items: center; overflow: hidden; z-index: 100;
+  font-family: var(--mono); font-size: 9px; letter-spacing: 2px;
+}
+.ticker-label {
+  padding: 0 14px; color: var(--teal); white-space: nowrap;
+  border-right: 1px solid var(--border2); flex-shrink: 0; font-weight: 500;
+}
+.ticker-track { flex: 1; overflow: hidden; position: relative; }
+.ticker-inner {
+  display: inline-block; white-space: nowrap;
+  animation: ticker-scroll 40s linear infinite;
+  color: var(--text-dim);
+}
+@keyframes ticker-scroll { 0%{transform:translateX(100%)} 100%{transform:translateX(-100%)} }
+
+/* SVG map marker pulse */
+@keyframes mapPulse {
+  0%,100% { r: 16; opacity: 0.15; }
+  50%      { r: 22; opacity: 0.04; }
+}
+.pulse-outer { transform-origin: center; }
+.map-tooltip {
+  position: absolute; display: none;
+  background: rgba(5,7,15,0.95); border: 1px solid var(--border);
+  padding: 8px 12px; border-radius: 3px; pointer-events: none;
+  font-family: var(--mono); font-size: 10px; color: var(--text-primary);
+  z-index: 10; white-space: nowrap; min-width: 180px;
+}
+.map-tooltip.visible { display: block; }
+.tt-title { font-size: 11px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; font-family: var(--body); }
+.tt-row { display: flex; justify-content: space-between; gap: 12px; color: var(--text-dim); font-size: 9px; margin-top: 2px; }
+
+/* pulse animation for map markers */
+@keyframes map-pulse {
+  0%   { r: 6; opacity: 0.9; }
+  50%  { r: 10; opacity: 0.4; }
+  100% { r: 6; opacity: 0.9; }
+}
+.pulse-circle { animation: map-pulse 2s ease-in-out infinite; }
+
+/* layout adjustment for ticker */
+.layout { padding-bottom: 26px; }
+</style>
+</head>
+<body>
+
+<!-- ══ HEADER ══ -->
+<header class="header">
+  <div class="logo">
+    <div class="logo-mark">
+      <span></span><span></span><span></span><span></span>
+    </div>
+    <div class="logo-text">
+      <div class="logo-title">STRATEGIC WATCH AI</div>
+      <div class="logo-sub">// GEOPOLITICAL INTELLIGENCE · OSINT PIPELINE</div>
+    </div>
+  </div>
+
+  <div class="header-kpis">
+    <div class="kpi">
+      <div class="kpi-val danger">3</div>
+      <div class="kpi-label">High Risk</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-val warn">6</div>
+      <div class="kpi-label">Escalation</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-val">10</div>
+      <div class="kpi-label">Analyzed</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-val trend">▲ ESCALATING</div>
+      <div class="kpi-label">Global Trend</div>
+    </div>
+  </div>
+
+  <div class="header-right">
+    <div class="world-clock">
+      <div class="wc-city"><div class="wc-time" id="wc-dc">--:--</div><div class="wc-label">WASHINGTON</div></div>
+      <div class="wc-city"><div class="wc-time" id="wc-lon">--:--</div><div class="wc-label">LONDON</div></div>
+      <div class="wc-city"><div class="wc-time" id="wc-mos">--:--</div><div class="wc-label">MOSCOW</div></div>
+      <div class="wc-city"><div class="wc-time" id="wc-tok">--:--</div><div class="wc-label">TOKYO</div></div>
+    </div>
+    <div class="pill pill-live">PIPELINE LIVE</div>
+    <div class="pill pill-alert">▲ 3 HIGH ALERTS</div>
+    <button class="run-btn">USE STREAMLIT SIDEBAR TO RUN</button>
+  </div>
+</header>
+
+<!-- ══ LAYOUT ══ -->
+<div class="layout">
+
+  <!-- ── LEFT NAV ── -->
+  <nav class="nav">
+    <div class="nav-section">
+      <div class="nav-head">// View</div>
+      <div class="nav-item active" onclick="setNav(this)">◈ Global Executive</div>
+      <div class="nav-item" onclick="setNav(this)">◈ Conflict Map</div>
+      <div class="nav-item" onclick="setNav(this)">◈ Intel Feed</div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-head">// Theaters</div>
+      <div class="nav-item" data-theater="Russia-Ukraine" onclick="setNav(this)">Russia – Ukraine <span class="nav-badge nb-high">HIGH</span><span class="nav-count" data-count="0"></span></div>
+      <div class="nav-item active-sub" data-theater="Iran-Israel" onclick="setNav(this)">Iran – Israel <span class="nav-badge nb-high">HIGH</span><span class="nav-count" data-count="0"></span></div>
+      <div class="nav-item" data-theater="China-Taiwan" onclick="setNav(this)">China – Taiwan <span class="nav-badge nb-med">MED</span><span class="nav-count" data-count="0"></span></div>
+      <div class="nav-item" data-theater="North Korea" onclick="setNav(this)">North Korea <span class="nav-badge nb-med">MED</span><span class="nav-count" data-count="0"></span></div>
+      <div class="nav-item" data-theater="Venezuela" onclick="setNav(this)">Venezuela <span class="nav-badge nb-low">LOW</span><span class="nav-count" data-count="0"></span></div>
+      <div class="nav-item" data-theater="Cuba" onclick="setNav(this)">Cuba <span class="nav-badge nb-low">LOW</span><span class="nav-count" data-count="0"></span></div>
+      <div class="nav-item" data-theater="Defense" onclick="setNav(this)">Defense <span class="nav-badge" style="color:var(--teal-dim);border:1px solid rgba(0,212,232,0.2)">RSS</span><span class="nav-count" data-count="0"></span></div>
+    </div>
+    <div class="nav-sources">
+      <div class="nav-head" style="margin-bottom:10px;">// Sources (this run)</div>
+      <div class="nav-source-item" data-source-match="Defense News"><span class="src-dot t1"></span>DEFENSE NEWS RSS <span class="nav-src-count"></span></div>
+      <div class="nav-source-item" data-source-match="Department of War"><span class="src-dot t1"></span>DEPT OF WAR RSS <span class="nav-src-count"></span></div>
+      <div class="nav-source-item" data-source-match="Reuters"><span class="src-dot t1"></span>REUTERS WIRE <span class="nav-src-count"></span></div>
+      <div class="nav-source-item" data-source-match="AP"><span class="src-dot t1"></span>AP INTERNATIONAL <span class="nav-src-count"></span></div>
+      <div class="nav-source-item" data-source-match="BBC"><span class="src-dot t1"></span>BBC WORLD <span class="nav-src-count"></span></div>
+      <div class="nav-source-item" data-source-match="Al Jazeera"><span class="src-dot t1"></span>AL JAZEERA <span class="nav-src-count"></span></div>
+      <div class="nav-source-item" data-source-match="Foreign Policy"><span class="src-dot t1"></span>FOREIGN POLICY <span class="nav-src-count"></span></div>
+    </div>
+    <div class="nav-controls">
+      <button class="nav-run-btn">PIPELINE RUNS FROM STREAMLIT SIDEBAR</button>
+    </div>
+  </nav>
+
+  <!-- ── MAIN ── -->
+  <main class="main">
+
+    <!-- CONFLICT MAP -->
+    <div id="section-conflict-map" class="section-head"><h2>Conflict Map — Top 5 Risks Plotted</h2></div>
+    <div class="map-container" style="margin-bottom:22px;">
+      <div class="map-label">// GLOBAL THEATER OVERVIEW · RISK LEVELS PLOTTED</div>
+      <div class="map-label-right">● HIGH &nbsp; ● MED &nbsp; ● LOW</div>
+      <div id="worldMap" style="width:100%;height:340px;position:relative;"></div>
+      <div class="map-tooltip" id="mapTooltip">
+        <div class="tt-title" id="tt-title"></div>
+        <div class="tt-row"><span id="tt-risk"></span><span id="tt-score"></span></div>
+        <div class="tt-row"><span id="tt-theater"></span><span id="tt-conf"></span></div>
+      </div>
+      <div class="map-legend">
+        <div class="map-legend-item"><div class="legend-dot" style="background:#ff3355;box-shadow:0 0 8px #ff335599"></div>HIGH RISK</div>
+        <div class="map-legend-item"><div class="legend-dot" style="background:#ff8800;box-shadow:0 0 8px #ff880099"></div>MEDIUM RISK</div>
+        <div class="map-legend-item"><div class="legend-dot" style="background:#00cc77;box-shadow:0 0 8px #00cc7799"></div>LOW RISK</div>
+      </div>
+    </div>
+
+    <!-- TOP 5 RISKS / INTEL FEED -->
+    <div id="section-intel-feed" class="section-head"><h2>Today's Top 5 Strategic Risks</h2></div>
+    <div class="risk-list">
+
+      <div class="risk-card r-high">
+        <div class="rank">01</div>
+        <div class="risk-info">
+          <div class="risk-title">Amid US military actions, White House struggles to explain how Iran war will end</div>
+          <div class="risk-meta">
+            <span class="rl-high">■ HIGH RISK</span>
+            <span>THEATER: DEFENSE</span>
+            <span>CONF: HIGH</span>
+            <span>SOURCE: DEFENSE NEWS</span>
+            <span>SCORE: 0.971</span>
+          </div>
+        </div>
+        <div class="score-ring">
+          <svg width="48" height="48" viewBox="0 0 48 48">
+            <circle cx="24" cy="24" r="19" fill="none" stroke="rgba(0,200,220,0.1)" stroke-width="2"/>
+            <circle cx="24" cy="24" r="19" fill="none" stroke="#ff3355" stroke-width="2.5" stroke-dasharray="119.4" stroke-dashoffset="3.6" stroke-linecap="round"/>
+          </svg>
+          <span class="score-text">.97</span>
+        </div>
+      </div>
+
+      <div class="risk-card r-high">
+        <div class="rank">02</div>
+        <div class="risk-info">
+          <div class="risk-title">Two Iranian warships take sanctuary in India and Sri Lanka</div>
+          <div class="risk-meta">
+            <span class="rl-high">■ HIGH RISK</span>
+            <span>THEATER: DEFENSE</span>
+            <span>CONF: HIGH</span>
+            <span>SOURCE: DEFENSE NEWS</span>
+            <span>SCORE: 0.944</span>
+          </div>
+        </div>
+        <div class="score-ring">
+          <svg width="48" height="48" viewBox="0 0 48 48">
+            <circle cx="24" cy="24" r="19" fill="none" stroke="rgba(0,200,220,0.1)" stroke-width="2"/>
+            <circle cx="24" cy="24" r="19" fill="none" stroke="#ff3355" stroke-width="2.5" stroke-dasharray="119.4" stroke-dashoffset="6.7" stroke-linecap="round"/>
+          </svg>
+          <span class="score-text">.94</span>
+        </div>
+      </div>
+
+      <div class="risk-card r-high">
+        <div class="rank">03</div>
+        <div class="risk-info">
+          <div class="risk-title">Iran to face 'most intense day of strikes,' Hegseth says</div>
+          <div class="risk-meta">
+            <span class="rl-high">■ HIGH RISK</span>
+            <span>THEATER: DEFENSE</span>
+            <span>CONF: MEDIUM</span>
+            <span>SOURCE: DEFENSE NEWS</span>
+            <span>SCORE: 0.921</span>
+          </div>
+        </div>
+        <div class="score-ring">
+          <svg width="48" height="48" viewBox="0 0 48 48">
+            <circle cx="24" cy="24" r="19" fill="none" stroke="rgba(0,200,220,0.1)" stroke-width="2"/>
+            <circle cx="24" cy="24" r="19" fill="none" stroke="#ff5533" stroke-width="2.5" stroke-dasharray="119.4" stroke-dashoffset="9.4" stroke-linecap="round"/>
+          </svg>
+          <span class="score-text">.92</span>
+        </div>
+      </div>
+
+      <div class="risk-card r-med">
+        <div class="rank">04</div>
+        <div class="risk-info">
+          <div class="risk-title">Australia deploys early-warning aircraft to the Middle East amid Iran attacks</div>
+          <div class="risk-meta">
+            <span class="rl-med">■ MEDIUM RISK</span>
+            <span>THEATER: DEFENSE</span>
+            <span>CONF: HIGH</span>
+            <span>SOURCE: DEFENSE NEWS</span>
+            <span>SCORE: 0.756</span>
+          </div>
+        </div>
+        <div class="score-ring">
+          <svg width="48" height="48" viewBox="0 0 48 48">
+            <circle cx="24" cy="24" r="19" fill="none" stroke="rgba(0,200,220,0.1)" stroke-width="2"/>
+            <circle cx="24" cy="24" r="19" fill="none" stroke="#ff8800" stroke-width="2.5" stroke-dasharray="119.4" stroke-dashoffset="29.2" stroke-linecap="round"/>
+          </svg>
+          <span class="score-text">.76</span>
+        </div>
+      </div>
+
+      <div class="risk-card r-med">
+        <div class="rank">05</div>
+        <div class="risk-info">
+          <div class="risk-title">Australian submariners have a brush with Iran war</div>
+          <div class="risk-meta">
+            <span class="rl-med">■ MEDIUM RISK</span>
+            <span>THEATER: DEFENSE</span>
+            <span>CONF: MEDIUM</span>
+            <span>SOURCE: DEFENSE NEWS</span>
+            <span>SCORE: 0.712</span>
+          </div>
+        </div>
+        <div class="score-ring">
+          <svg width="48" height="48" viewBox="0 0 48 48">
+            <circle cx="24" cy="24" r="19" fill="none" stroke="rgba(0,200,220,0.1)" stroke-width="2"/>
+            <circle cx="24" cy="24" r="19" fill="none" stroke="#ff8800" stroke-width="2.5" stroke-dasharray="119.4" stroke-dashoffset="34.4" stroke-linecap="round"/>
+          </svg>
+          <span class="score-text">.71</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- THEATER GRID -->
+    <div class="section-head"><h2>Theater Overview</h2></div>
+    <div class="theater-grid">
+      <div class="theater-card">
+        <div class="theater-name">Iran — Israel / Gaza</div>
+        <div class="theater-bar"><div class="theater-fill high" style="width:94%"></div></div>
+        <div class="theater-lbl">HIGH · 0.94 · ACTIVE COMBAT</div>
+      </div>
+      <div class="theater-card">
+        <div class="theater-name">Russia — Ukraine</div>
+        <div class="theater-bar"><div class="theater-fill high" style="width:80%"></div></div>
+        <div class="theater-lbl">HIGH · 0.80 · ONGOING CONFLICT</div>
+      </div>
+      <div class="theater-card">
+        <div class="theater-name">China — Taiwan / SCS</div>
+        <div class="theater-bar"><div class="theater-fill med" style="width:62%"></div></div>
+        <div class="theater-lbl">MED · 0.62 · ELEVATED TENSION</div>
+      </div>
+      <div class="theater-card">
+        <div class="theater-name">North Korea</div>
+        <div class="theater-bar"><div class="theater-fill med" style="width:50%"></div></div>
+        <div class="theater-lbl">MED · 0.50 · MONITORING</div>
+      </div>
+      <div class="theater-card">
+        <div class="theater-name">Venezuela</div>
+        <div class="theater-bar"><div class="theater-fill low" style="width:22%"></div></div>
+        <div class="theater-lbl">LOW · 0.22 · STABLE</div>
+      </div>
+      <div class="theater-card">
+        <div class="theater-name">Cuba</div>
+        <div class="theater-bar"><div class="theater-fill low" style="width:15%"></div></div>
+        <div class="theater-lbl">LOW · 0.15 · STABLE</div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ── RIGHT PANEL ── -->
+  <aside class="right-panel">
+    <div class="panel-tabs">
+      <button class="panel-tab active" onclick="switchTab('brief',this)">BRIEF</button>
+      <button class="panel-tab" onclick="switchTab('escalation',this)">ESCALATION</button>
+      <button class="panel-tab" onclick="switchTab('rag',this)">SEARCH</button>
+    </div>
+
+    <div class="panel-body">
+
+      <!-- BRIEF TAB -->
+      <div class="panel-section active" id="tab-brief">
+        <div class="brief-date">2025-03-11 · RUN 0047 · CONFIDENCE: HIGH · SOURCES: TIER 1+2</div>
+        <div class="brief-headline">Escalating US–Iran Conflict and Regional Military Posturing Amid Rising Tensions</div>
+        <div class="brief-body">
+          Active US combat operations between the US and Iran continue to escalate, highlighted by recent US strikes and naval engagements. The White House struggles to articulate a clear exit strategy, increasing uncertainty and risk of further destabilization. Allied nations like Australia are enhancing surveillance capabilities in the Middle East while avoiding direct combat involvement. Concurrently, China is consolidating military leadership amid a defense budget increase.
+        </div>
+
+        <div class="brief-sub-head">// Regional Updates</div>
+        <div class="brief-region">
+          <div class="brief-region-name high">Middle East — High Risk</div>
+          <div class="brief-region-text">The US–Iran conflict intensifies with active strikes and naval engagements. Regional actors like Australia increase surveillance support, while Iran rejects ceasefire efforts, raising the risk of broader conflict.</div>
+        </div>
+        <div class="brief-region">
+          <div class="brief-region-name high">Indian Ocean — High Risk</div>
+          <div class="brief-region-text">Iranian warships seeking sanctuary in India and Sri Lanka complicate regional diplomacy and security. These developments increase the risk of maritime conflict spillover.</div>
+        </div>
+        <div class="brief-region">
+          <div class="brief-region-name med">Asia–Pacific — Medium Risk</div>
+          <div class="brief-region-text">Japan advances defense mobilization without immediate escalation. China's military leadership purge and budget increase signal possible strategic recalibration.</div>
+        </div>
+
+        <div class="brief-sub-head">// Strategic Outlook</div>
+        <div class="brief-body" style="margin-bottom:0">
+          The US–Iran conflict remains the primary driver of regional instability, with active combat and strikes likely to continue in the near term. Monitoring these dynamics is critical to anticipating potential conflict spillovers.
+        </div>
+
+        <div class="divider"></div>
+        <div class="conf-card">
+          <div class="conf-level">HIGH</div>
+          <div class="conf-details">
+            BRIEF FIDELITY: 0.88<br>
+            SOURCES: TIER 1 + TIER 2<br>
+            LAST RUN: 13:47 UTC<br>
+            ARTICLES ANALYZED: 10
+          </div>
+        </div>
+      </div>
+
+      <!-- ESCALATION TAB -->
+      <div class="panel-section" id="tab-escalation">
+        <div class="brief-sub-head" style="margin-top:0">// Flagged for Escalation Potential</div>
+        <div class="escalation-item">
+          <div class="esc-icon">▲</div>
+          <div class="esc-text">Potential for further US–Iran naval clashes in the Indian Ocean and Persian Gulf.</div>
+        </div>
+        <div class="escalation-item">
+          <div class="esc-icon">▲</div>
+          <div class="esc-text">Risk of miscalculation in underwater operations involving allied submarines near Iran.</div>
+        </div>
+        <div class="escalation-item">
+          <div class="esc-icon">▲</div>
+          <div class="esc-text">Iran ceasefire rejection and US retaliation signals indicate high probability of continued kinetic action.</div>
+        </div>
+        <div class="escalation-item med">
+          <div class="esc-icon">●</div>
+          <div class="esc-text">China's military leadership purge may lead to assertive regional posturing in the South China Sea.</div>
+        </div>
+        <div class="escalation-item med">
+          <div class="esc-icon">●</div>
+          <div class="esc-text">Possible separation of conflict if Iran rejects ceasefire and retaliates to US strikes with broader regional assets.</div>
+        </div>
+        <div class="escalation-item med">
+          <div class="esc-icon">●</div>
+          <div class="esc-text">Australia's enhanced surveillance posture signals growing allied commitment in the Middle East theater.</div>
+        </div>
+
+        <div class="divider"></div>
+        <div class="brief-sub-head">// Theater Risk Index</div>
+        <div style="font-family:var(--mono);font-size:10px;line-height:2.4;color:var(--text-dim);">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="color:var(--text-secondary);font-weight:500;">Middle East</span>
+            <span style="color:var(--red);">HIGH &nbsp;██████████░</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="color:var(--text-secondary);font-weight:500;">Indian Ocean</span>
+            <span style="color:var(--red);">HIGH &nbsp;█████████░░</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="color:var(--text-secondary);font-weight:500;">Asia–Pacific</span>
+            <span style="color:var(--orange);">MED &nbsp;&nbsp;██████░░░░░</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="color:var(--text-secondary);font-weight:500;">Europe</span>
+            <span style="color:var(--orange);">MED &nbsp;&nbsp;████░░░░░░░</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="color:var(--text-secondary);font-weight:500;">Western Hemi</span>
+            <span style="color:var(--green);">LOW &nbsp;&nbsp;██░░░░░░░░░</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- RAG TAB -->
+      <div class="panel-section" id="tab-rag">
+        <div class="brief-sub-head" style="margin-top:0">// Semantic Search (RAG)</div>
+        <div class="rag-hint">Vector search over indexed intelligence items. Ask a question or enter keywords to retrieve the most relevant analyzed articles.</div>
+        <div class="rag-search-box">
+          <input class="rag-input" id="ragInput" type="text" placeholder="e.g. Iran navy Sri Lanka..." onkeydown="if(event.key==='Enter')runRAG()">
+          <button class="rag-btn" onclick="runRAG()">SEARCH</button>
+        </div>
+        <div class="rag-results" id="ragResults">
+          <div class="rag-empty">
+            // ENTER A QUERY TO SEARCH<br>INDEXED INTELLIGENCE ITEMS
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </aside>
+
+</div><!-- end layout -->
+
+<!-- TICKER -->
+<div class="ticker">
+  <div class="ticker-label">// LIVE FEED</div>
+  <div class="ticker-track">
+    <span class="ticker-inner">
+      DEFENSE NEWS RSS ACTIVE &nbsp;·&nbsp; NEWSAPI TIER-2 ONLINE &nbsp;·&nbsp; OPENAI CLASSIFICATION PIPELINE NOMINAL &nbsp;·&nbsp; LAST RUN: 2025-03-11T13:47:22Z &nbsp;·&nbsp; SOURCES: DEFENSE NEWS · DEPT OF WAR RSS · REUTERS · AP · BBC · AL JAZEERA &nbsp;·&nbsp; 10 ARTICLES ANALYZED &nbsp;·&nbsp; 3 HIGH · 4 MEDIUM · 3 LOW &nbsp;·&nbsp; GLOBAL TREND: ESCALATING ▲ &nbsp;·&nbsp; NEXT AUTO-RUN: T+06:00:00 &nbsp;·&nbsp; CLASSIFICATION: UNCLASSIFIED // OSINT &nbsp;·&nbsp; STRATEGIC WATCH AI v1.0 · ASU MS-AIB
+    </span>
+  </div>
+</div>
+
+<script>
+/* __PIPELINE_DATA_INJECTION__ */
+
+// ── KPI Header ────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+
+  let currentTheater = null;
+
+  function applyTheaterFilter() {
+    const cards = document.querySelectorAll('.risk-card');
+    cards.forEach(card => {
+      const t = card.getAttribute('data-theater') || '';
+      if (!currentTheater) {
+        card.style.display = '';
+      } else {
+        card.style.display = (t === currentTheater) ? '' : 'none';
+      }
+    });
+    renderTheaterFeed();
+  }
+
+  function renderTheaterFeed() {
+    const container = document.getElementById('ragResults');
+    if (!container) return;
+    const items = (PIPELINE_DATA.rag_items || []);
+    if (!currentTheater) {
+      container.innerHTML = '<div class="rag-empty">// SELECT A THEATER (LEFT) OR ENTER A SEARCH ABOVE<br>TO SEE INTELLIGENCE ITEMS BY ZONE</div>';
+      return;
+    }
+    const filtered = items.filter(i => (i.theater || '').trim() === currentTheater);
+    if (filtered.length === 0) {
+      container.innerHTML = '<div class="rag-empty">// NO ARTICLES FOR THIS THEATER IN THIS RUN<br>Try another zone or run an intelligence update.</div>';
+      return;
+    }
+    container.innerHTML = filtered.map(r => {
+      const rc = r.risk === 'HIGH' ? 'rl-high' : r.risk === 'MEDIUM' ? 'rl-med' : '';
+      const url = r.url || '#';
+      const link = url && url !== '#'
+        ? '<a class="rag-read" href="' + url + '" target="_blank" rel="noopener noreferrer">→ Read source</a>'
+        : '<span class="rag-read" style="opacity:0.6;cursor:default;">No source URL</span>';
+      return '<div class="rag-result"><div class="rag-result-title">' + (r.title || '') + '</div><div class="rag-result-meta"><span class="' + rc + '">■ ' + (r.risk || '') + '</span><span>' + (r.theater || '') + '</span><span>CONF: ' + (r.conf || '') + '</span><span>' + (r.src || '') + '</span><span>SCORE: ' + (r.score || '') + '</span></div>' + link + '</div>';
+    }).join('');
+  }
+
+  // Header KPIs
+  const kpis = document.querySelectorAll('.kpi-val');
+  if (kpis[0]) kpis[0].textContent = PIPELINE_DATA.meta.high_count;
+  if (kpis[1]) kpis[1].textContent = PIPELINE_DATA.meta.esc_count;
+  if (kpis[2]) kpis[2].textContent = PIPELINE_DATA.meta.total;
+
+  const trend = PIPELINE_DATA.meta.trend || 'Stable';
+  const trendEl = document.querySelector('.kpi-val.trend');
+  if (trendEl) {
+    const arrow = trend === 'Escalating' ? '▲ ' : trend === 'De-escalating' ? '▼ ' : '— ';
+    trendEl.textContent = arrow + trend.toUpperCase();
+    trendEl.style.color = trend === 'Escalating' ? '#ff4466' :
+                          trend === 'De-escalating' ? '#00cc77' : '#ffaa00';
+  }
+
+  // Alert pill
+  const alertPill = document.querySelector('.pill-alert');
+  if (alertPill) alertPill.textContent = `▲ ${PIPELINE_DATA.meta.high_count} HIGH ALERTS`;
+
+  // ── Executive Brief ────────────────────────────────────────────────────
+  const brief = PIPELINE_DATA.brief;
+  const briefDate = document.querySelector('.brief-date');
+  if (briefDate) briefDate.textContent =
+    `${PIPELINE_DATA.meta.run_timestamp} · RUN · CONFIDENCE: ${PIPELINE_DATA.meta.confidence.toUpperCase()} · SOURCES: TIER 1+2`;
+
+  const briefHead = document.querySelector('.brief-headline');
+  if (briefHead) briefHead.textContent = brief.headline;
+
+  const briefBodies = document.querySelectorAll('.brief-body');
+  if (briefBodies[0]) briefBodies[0].textContent = brief.summary;
+  if (briefBodies[1]) briefBodies[1].textContent = brief.outlook;
+
+  // Regional updates
+  const regContainer = document.querySelector('#brief-regions');
+  if (regContainer && brief.regional) {
+    regContainer.innerHTML = brief.regional.map(r => `
+      <div class="brief-region">
+        <div class="brief-region-name ${r.risk.toLowerCase()}">${r.name} — ${r.risk} Risk</div>
+        <div class="brief-region-text">${r.text}</div>
+      </div>`).join('');
+  }
+
+  // ── Top 5 Risk Cards ──────────────────────────────────────────────────
+  const riskList = document.querySelector('.risk-list');
+  if (riskList && PIPELINE_DATA.top5) {
+    const SCORE_COLOR = { High: '#ff3355', Medium: '#ff8800', Low: '#00cc77' };
+    const RISK_CLASS  = { High: 'r-high',  Medium: 'r-med',   Low: 'r-low'  };
+    const RL_CLASS    = { High: 'rl-high', Medium: 'rl-med',  Low: 'rl-low' };
+    const CIRCUMFERENCE = 119.4;
+
+    riskList.innerHTML = PIPELINE_DATA.top5.map((item, i) => {
+      const col    = SCORE_COLOR[item.risk] || '#ff8800';
+      const rc     = RISK_CLASS[item.risk]  || 'r-med';
+      const rlc    = RL_CLASS[item.risk]    || 'rl-med';
+      const offset = CIRCUMFERENCE * (1 - item.score);
+      const num    = String(i + 1).padStart(2, '0');
+      const url    = item.url || '#';
+      const title  = item.title || '';
+      // Whole card opens the article in a new tab when a real URL exists.
+      const clickAttr = url && url !== '#' ? ` onclick="window.open('${url}', '_blank', 'noopener,noreferrer')"` : '';
+      return `
+        <div class="risk-card ${rc}" data-theater="${item.theater || ''}" data-url="${url}"${clickAttr}>
+          <div class="rank">${num}</div>
+          <div class="risk-info">
+            <div class="risk-title">${title}</div>
+            <div class="risk-meta">
+              <span class="${rlc}">■ ${item.risk.toUpperCase()} RISK</span>
+              <span>THEATER: ${item.theater}</span>
+              <span>CONF: ${item.conf}</span>
+              <span>SOURCE: ${item.source}</span>
+              <span>SCORE: ${item.score.toFixed(3)}</span>
+            </div>
+          </div>
+          <div class="score-ring">
+            <svg width="48" height="48" viewBox="0 0 48 48">
+              <circle cx="24" cy="24" r="19" fill="none" stroke="rgba(0,200,220,0.1)" stroke-width="2"/>
+              <circle cx="24" cy="24" r="19" fill="none" stroke="${col}" stroke-width="2.5"
+                stroke-dasharray="${CIRCUMFERENCE}" stroke-dashoffset="${offset.toFixed(1)}" stroke-linecap="round"/>
+            </svg>
+            <span class="score-text">${item.score.toFixed(2).replace('0.','.')}</span>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  // ── Escalation Watch ─────────────────────────────────────────────────
+  const escList = document.querySelector('#escalation-items');
+  if (escList && PIPELINE_DATA.escalation) {
+    escList.innerHTML = PIPELINE_DATA.escalation.map(e => {
+      const cls = e.level === 'High' ? '' : ' med';
+      const icon = e.level === 'High' ? '▲' : '●';
+      return `
+        <div class="escalation-item${cls}">
+          <div class="esc-icon">${icon}</div>
+          <div class="esc-text">${e.text}</div>
+        </div>`;
+    }).join('');
+  }
+
+  // ── Theater Overview bars ─────────────────────────────────────────────
+  const theaterGrid = document.querySelector('.theater-grid');
+  if (theaterGrid && PIPELINE_DATA.theater_risks) {
+    const TRISK = PIPELINE_DATA.theater_risks;
+    const TNAMES = {
+      'Iran-Israel': 'Iran — Israel / Gaza',
+      'Russia-Ukraine': 'Russia — Ukraine',
+      'China-Taiwan': 'China — Taiwan / SCS',
+      'North Korea': 'North Korea',
+      'Venezuela': 'Venezuela',
+      'Cuba': 'Cuba',
+    };
+    theaterGrid.innerHTML = Object.entries(TNAMES).map(([key, name]) => {
+      const val = TRISK[key] || 0;
+      const pct = Math.round(val * 100);
+      const level = val >= 0.7 ? 'high' : val >= 0.4 ? 'med' : 'low';
+      const label = val >= 0.7 ? 'HIGH' : val >= 0.4 ? 'MED' : 'LOW';
+      return `
+        <div class="theater-card">
+          <div class="theater-name">${name}</div>
+          <div class="theater-bar"><div class="theater-fill ${level}" style="width:${pct}%"></div></div>
+          <div class="theater-lbl">${label} · ${val.toFixed(2)} · ${label === 'HIGH' ? 'ELEVATED' : label === 'MED' ? 'MONITORING' : 'STABLE'}</div>
+        </div>`;
+    }).join('');
+  }
+
+  // ── RAG Data (replaces hardcoded ragData array) ───────────────────────
+  if (typeof ragData !== 'undefined' && PIPELINE_DATA.rag_items) {
+    ragData.length = 0;
+    PIPELINE_DATA.rag_items.forEach(item => ragData.push(item));
+  }
+
+  // ── Map risk points (replaces hardcoded riskPoints) ───────────────────
+  if (typeof riskPoints !== 'undefined' && PIPELINE_DATA.risk_points) {
+    riskPoints.length = 0;
+    PIPELINE_DATA.risk_points.forEach(p => riskPoints.push(p));
+  }
+
+  // Theater counts in left nav (which zones have articles)
+  const counts = PIPELINE_DATA.theater_counts || {};
+  document.querySelectorAll('.nav-item[data-theater]').forEach(el => {
+    const key = el.getAttribute('data-theater');
+    const n = counts[key] != null ? counts[key] : 0;
+    const countEl = el.querySelector('.nav-count');
+    if (countEl) { countEl.textContent = String(n); countEl.setAttribute('data-count', n); }
+  });
+
+  // Source counts in left nav (articles per source this run)
+  const srcCounts = PIPELINE_DATA.source_counts || {};
+  document.querySelectorAll('.nav-source-item[data-source-match]').forEach(el => {
+    const match = (el.getAttribute('data-source-match') || '').toLowerCase();
+    let n = 0;
+    for (const k of Object.keys(srcCounts)) {
+      if (k.toLowerCase().indexOf(match) >= 0) n += srcCounts[k];
+    }
+    const span = el.querySelector('.nav-src-count');
+    if (span) span.textContent = n > 0 ? ' (' + n + ')' : '';
+  });
+
+  // Right-panel feed: show default message until a theater is selected
+  renderTheaterFeed();
+
+  // Expose theater filter setter; when user clicks a theater, filter and switch to Search tab so feed updates are visible
+  window.__swSetTheater = function (theaterKey) {
+    currentTheater = theaterKey || null;
+    window.__swCurrentTheater = theaterKey || null;
+    applyTheaterFilter();
+    var tab = document.querySelector('.panel-tab[onclick*="rag"]');
+    if (tab) { document.querySelectorAll('.panel-tab').forEach(function(t){ t.classList.remove('active'); }); document.querySelectorAll('.panel-section').forEach(function(s){ s.classList.remove('active'); }); tab.classList.add('active'); document.getElementById('tab-rag').classList.add('active'); }
+  };
+  window.__swCurrentTheater = null;
+
+}); // end DOMContentLoaded
+/* ── World Clock ── */
+function tick() {
+  const now = new Date();
+  const pad = v => String(v).padStart(2,'0');
+  const cityTime = (tz) => {
+    try {
+      const s = now.toLocaleTimeString('en-US', { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false });
+      return s;
+    } catch(e) {
+      const off = { 'America/New_York': -5, 'Europe/London': 0, 'Europe/Moscow': 3, 'Asia/Tokyo': 9 };
+      const utcH = now.getUTCHours() + (off[tz] || 0);
+      const h = ((utcH % 24) + 24) % 24;
+      return `${pad(h)}:${pad(now.getUTCMinutes())}`;
+    }
+  };
+  document.getElementById('wc-dc').textContent  = cityTime('America/New_York');
+  document.getElementById('wc-lon').textContent = cityTime('Europe/London');
+  document.getElementById('wc-mos').textContent = cityTime('Europe/Moscow');
+  document.getElementById('wc-tok').textContent = cityTime('Asia/Tokyo');
+}
+tick(); setInterval(tick, 1000);
+
+/* ── Nav ── */
+function setNav(el) {
+  const section = el.closest('.nav-section');
+  section.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+  el.classList.add('active');
+
+  const label = el.textContent.toLowerCase();
+  if (label.includes('conflict map')) {
+    const target = document.getElementById('section-conflict-map');
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } else if (label.includes('intel feed')) {
+    const target = document.getElementById('section-intel-feed');
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } else if (label.includes('global executive')) {
+    if (window.__swSetTheater) window.__swSetTheater(null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } else {
+    // Theater filter: map nav labels to theater keys and filter cards client-side
+    const lower = label;
+    let theaterKey = null;
+    if (lower.includes('russia')) theaterKey = 'Russia-Ukraine';
+    else if (lower.includes('iran')) theaterKey = 'Iran-Israel';
+    else if (lower.includes('china')) theaterKey = 'China-Taiwan';
+    else if (lower.includes('north korea')) theaterKey = 'North Korea';
+    else if (lower.includes('venezuela')) theaterKey = 'Venezuela';
+    else if (lower.includes('cuba')) theaterKey = 'Cuba';
+    else if (lower.includes('defense')) theaterKey = 'Defense';
+
+    if (typeof window.__swSetTheater === 'function') {
+      window.__swSetTheater(theaterKey);
+      const target = document.getElementById('section-intel-feed');
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+}
+
+/* ── Panel tabs ── */
+function switchTab(id, btn) {
+  document.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel-section').forEach(s => s.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-'+id).classList.add('active');
+}
+
+/* ── RAG mock ── */
+const ragData = [
+  { title: 'Two Iranian warships take sanctuary in India and Sri Lanka', risk: 'HIGH', theater: 'Defense', conf: 'HIGH', score: '0.944', src: 'Defense News' },
+  { title: 'Australian submariners have a brush with Iran war', risk: 'MEDIUM', theater: 'Defense', conf: 'MEDIUM', score: '0.712', src: 'Defense News' },
+  { title: 'Iran to face most intense day of strikes, Hegseth says', risk: 'HIGH', theater: 'Defense', conf: 'MEDIUM', score: '0.921', src: 'Defense News' },
+  { title: 'Australia deploys early-warning aircraft to the Middle East amid Iran attacks', risk: 'MEDIUM', theater: 'Defense', conf: 'HIGH', score: '0.756', src: 'Defense News' },
+  { title: 'Amid US military actions, White House struggles to explain how Iran war will end', risk: 'HIGH', theater: 'Defense', conf: 'HIGH', score: '0.971', src: 'Defense News' },
+  { title: 'China steps up 2026 defence budget by 7% amid purge of generals', risk: 'MEDIUM', theater: 'China-Taiwan', conf: 'MEDIUM', score: '0.640', src: 'Defense News' },
+  { title: 'Japan shrugs off RCAF delays, but moves to export rules for future warplanes', risk: 'LOW', theater: 'China-Taiwan', conf: 'LOW', score: '0.310', src: 'Defense News' },
+  { title: 'US Space Force clears design milestone, advances missile-warning constellation', risk: 'LOW', theater: 'Defense', conf: 'MEDIUM', score: '0.290', src: 'Defense News' },
+];
+
+function runRAG() {
+  const q = document.getElementById('ragInput').value.toLowerCase().trim();
+  const container = document.getElementById('ragResults');
+  const theater = window.__swCurrentTheater || null;
+  const data = theater ? ragData.filter(item => (item.theater || '').trim() === theater) : ragData;
+  if (!q) {
+    if (theater && data.length === 0) {
+      container.innerHTML = '<div class="rag-empty">// NO ARTICLES FOR THIS THEATER IN THIS RUN<br>Try another zone or run an update.</div>';
+    } else if (theater && data.length > 0) {
+      container.innerHTML = '<div class="rag-empty">// ENTER A QUERY TO SEARCH WITHIN ' + theater.toUpperCase() + '<br>' + data.length + ' ITEMS</div>';
+    } else {
+      container.innerHTML = '<div class="rag-empty">// ENTER A QUERY TO SEARCH<br>INDEXED INTELLIGENCE ITEMS</div>';
+    }
+    return;
+  }
+  const words = q.split(/\s+/).filter(Boolean);
+  // Synonyms so e.g. "navy" matches naval, warship, ship, maritime
+  const synonyms = { navy: ['navy','naval','warship','warships','ship','ships','maritime','fleet'], iran: ['iran','iranian'], china: ['china','chinese'], russia: ['russia','russian'], ukraine: ['ukraine','ukrainian'], taiwan: ['taiwan','taiwanese'], north: ['north'], korea: ['korea','korean'] };
+  const expand = w => { const key = w.toLowerCase(); return synonyms[key] ? synonyms[key] : [key]; };
+  const scored = data.map(item => {
+    const haystack = (item.title + ' ' + (item.theater || '') + ' ' + (item.risk || '') + ' ' + (item.summary || '')).toLowerCase();
+    const matchCount = words.filter(w => expand(w).some(v => haystack.includes(v))).length;
+    const allMatch = matchCount === words.length;
+    const hits = allMatch ? matchCount : 0;
+    return { ...item, hits, matchCount };
+  }).filter(i => i.hits > 0).sort((a,b) => b.hits - a.hits || parseFloat(b.score) - parseFloat(a.score));
+
+  if (!scored.length) {
+    container.innerHTML = '<div class="rag-empty">// NO MATCHING ITEMS FOUND<br>TRY DIFFERENT KEYWORDS</div>';
+    return;
+  }
+  container.innerHTML = scored.map(r => {
+    const rc = r.risk === 'HIGH' ? 'rl-high' : r.risk === 'MEDIUM' ? 'rl-med' : '';
+    const url = r.url || '#';
+    const link = url && url !== '#'
+      ? `<a class="rag-read" href="${url}" target="_blank" rel="noopener noreferrer">→ Read source</a>`
+      : '<span class="rag-read" style="opacity:0.6;cursor:default;">No source URL</span>';
+    return `
+      <div class="rag-result">
+        <div class="rag-result-title">${r.title}</div>
+        <div class="rag-result-meta">
+          <span class="${rc}">■ ${r.risk}</span>
+          <span>${r.theater}</span>
+          <span>CONF: ${r.conf}</span>
+          <span>${r.src}</span>
+          <span>SCORE: ${r.score}</span>
+        </div>
+        ${link}
+      </div>`;
+  }).join('');
+}
+
+/* ══════════════════════════════════════
+   WORLD MAP — D3 + TopoJSON SVG
+══════════════════════════════════════ */
+const riskPoints = [
+  { lat: 32.5,  lng: 35.5,  label: '01 · Iran–Israel Theater',            risk: 'H', score: '.97', theater: 'Iran–Israel', conf: 'HIGH' },
+  { lat: 8.5,   lng: 76.0,  label: '02 · Iranian Warships – Indian Ocean', risk: 'H', score: '.94', theater: 'Defense',     conf: 'HIGH' },
+  { lat: 35.7,  lng: 51.4,  label: '03 · Iran Strike Warning',             risk: 'H', score: '.92', theater: 'Iran–Israel', conf: 'MEDIUM' },
+  { lat: -25.0, lng: 133.0, label: '04 · Australia EW Aircraft – ME',      risk: 'M', score: '.76', theater: 'Defense',     conf: 'HIGH' },
+  { lat: -34.9, lng: 138.6, label: '05 · Aus. Submariners – Iran War',     risk: 'M', score: '.71', theater: 'Defense',     conf: 'MEDIUM' },
+];
+const RCOL = { H: '#ff3355', M: '#ff8800', L: '#00cc77' };
+
+function buildMap() {
+  const container = document.getElementById('worldMap');
+  const W = container.clientWidth, H = 340;
+  container.innerHTML = '';
+
+  const svg = d3.select('#worldMap').append('svg')
+    .attr('width', W).attr('height', H)
+    .style('display','block');
+
+  // Ocean background
+  const defs = svg.append('defs');
+  const oceanGrad = defs.append('linearGradient').attr('id','oceanGrad').attr('x1','0%').attr('y1','0%').attr('x2','0%').attr('y2','100%');
+  oceanGrad.append('stop').attr('offset','0%').attr('stop-color','#040c1c');
+  oceanGrad.append('stop').attr('offset','100%').attr('stop-color','#050a16');
+
+  // Glow filter for markers
+  const filter = defs.append('filter').attr('id','glow').attr('x','-50%').attr('y','-50%').attr('width','200%').attr('height','200%');
+  filter.append('feGaussianBlur').attr('stdDeviation','3').attr('result','blur');
+  const feMerge = filter.append('feMerge');
+  feMerge.append('feMergeNode').attr('in','blur');
+  feMerge.append('feMergeNode').attr('in','SourceGraphic');
+
+  svg.append('rect').attr('width',W).attr('height',H).attr('fill','url(#oceanGrad)');
+
+  // Graticule grid
+  const projection = d3.geoNaturalEarth1().scale((W / 640) * 100).translate([W/2, H/2]);
+  const path = d3.geoPath().projection(projection);
+  const graticule = d3.geoGraticule().step([30, 30]);
+
+  svg.append('path').datum(graticule()).attr('d', path)
+    .attr('fill','none').attr('stroke','rgba(0,180,210,0.08)').attr('stroke-width','0.5');
+
+  // Sphere outline
+  svg.append('path').datum({type:'Sphere'}).attr('d', path)
+    .attr('fill','none').attr('stroke','rgba(0,180,210,0.15)').attr('stroke-width','1');
+
+  // Load world TopoJSON from CDN
+  d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json').then(world => {
+    const countries = topojson.feature(world, world.objects.countries);
+    const borders   = topojson.mesh(world, world.objects.countries, (a,b) => a !== b);
+
+    // Country fills
+    svg.append('g').selectAll('path')
+      .data(countries.features)
+      .join('path')
+      .attr('d', path)
+      .attr('fill', 'rgba(0,100,160,0.25)')
+      .attr('stroke', 'rgba(0,200,230,0.28)')
+      .attr('stroke-width', '0.5');
+
+    // Country borders
+    svg.append('path').datum(borders).attr('d', path)
+      .attr('fill','none')
+      .attr('stroke','rgba(0,200,230,0.15)')
+      .attr('stroke-width','0.3');
+
+    // Risk markers
+    const tooltip  = document.getElementById('mapTooltip');
+    const mapDiv   = document.getElementById('worldMap');
+
+    riskPoints.forEach((r, i) => {
+      const [px, py] = projection([r.lng, r.lat]);
+      if (!px || !py) return;
+      const col = RCOL[r.risk];
+      const g = svg.append('g').attr('transform',`translate(${px},${py})`).style('cursor','crosshair');
+
+      // Outer pulse ring (CSS animated)
+      g.append('circle').attr('r', 18).attr('fill','none')
+        .attr('stroke', col).attr('stroke-width','1').attr('opacity','0.2')
+        .attr('class','pulse-outer').style('animation',`mapPulse ${1.8+i*0.3}s ease-in-out infinite`);
+
+      // Mid ring
+      g.append('circle').attr('r', 11).attr('fill','none')
+        .attr('stroke', col).attr('stroke-width','1.5').attr('opacity','0.5');
+
+      // Core dot
+      g.append('circle').attr('r', 5)
+        .attr('fill', col).attr('filter','url(#glow)');
+
+      // Risk number label
+      g.append('text')
+        .attr('x', 14).attr('y', -8)
+        .attr('fill', col)
+        .attr('font-family','IBM Plex Mono, monospace')
+        .attr('font-size','9')
+        .attr('font-weight','500')
+        .attr('letter-spacing','1')
+        .text(`0${i+1}`);
+
+      // Tooltip interaction
+      g.on('mouseenter', function(event) {
+        const rect = mapDiv.getBoundingClientRect();
+        const ex = event.clientX - rect.left;
+        const ey = event.clientY - rect.top;
+        document.getElementById('tt-title').textContent = r.label;
+        document.getElementById('tt-risk').textContent  = '■ ' + (r.risk==='H'?'HIGH':r.risk==='M'?'MEDIUM':'LOW') + ' RISK';
+        document.getElementById('tt-risk').style.color  = col;
+        document.getElementById('tt-score').textContent = 'SCORE: ' + r.score;
+        document.getElementById('tt-theater').textContent = 'THEATER: ' + r.theater;
+        document.getElementById('tt-conf').textContent  = 'CONF: ' + r.conf;
+        let tx = ex + 16, ty = ey - 10;
+        if (tx + 210 > W) tx = ex - 220;
+        tooltip.style.left = tx + 'px';
+        tooltip.style.top  = ty + 'px';
+        tooltip.classList.add('visible');
+      }).on('mouseleave', () => tooltip.classList.remove('visible'));
+    });
+
+  }).catch(() => {
+    // Fallback message if CDN fails
+    svg.append('text').attr('x',W/2).attr('y',H/2)
+      .attr('text-anchor','middle').attr('fill','rgba(0,200,230,0.3)')
+      .attr('font-family','IBM Plex Mono,monospace').attr('font-size','11')
+      .text('// MAP DATA LOADING — CHECK NETWORK CONNECTION');
+  });
+}
+
+// Load D3 + TopoJSON then build
+function loadScriptSeq(urls, cb) {
+  if (!urls.length) { cb(); return; }
+  const s = document.createElement('script');
+  s.src = urls[0];
+  s.onload = () => loadScriptSeq(urls.slice(1), cb);
+  document.head.appendChild(s);
+}
+
+loadScriptSeq([
+  'https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js'
+], () => {
+  buildMap();
+  window.addEventListener('resize', buildMap);
+});
+
+/* old canvas code removed */
+const _unused = [
+  // ── NORTH AMERICA (mainland) ──
+  [[71,-156],[70,-148],[69,-140],[68,-137],[67,-138],[66,-136],[65,-138],[64,-140],[63,-145],[61,-150],[59,-152],[58,-152],[57,-153],[55,-160],[54,-163],[52,-168],[54,-166],[56,-160],[58,-152],[60,-148],[61,-146],[60,-142],[58,-137],[56,-132],[54,-130],[52,-128],[50,-125],[48,-124],[46,-124],[44,-124],[42,-124],[40,-124],[38,-123],[37,-122],[36,-122],[35,-121],[34,-120],[33,-118],[32,-117],[31,-114],[30,-110],[28,-110],[26,-108],[24,-106],[22,-106],[20,-105],[18,-103],[16,-100],[15,-92],[14,-90],[14,-88],[15,-87],[16,-89],[16,-90],[15,-91],[14,-92],[15,-93],[18,-94],[19,-97],[21,-97],[22,-97],[24,-97],[25,-97],[26,-97],[27,-97],[28,-97],[29,-95],[30,-93],[29,-90],[29,-89],[30,-89],[30,-88],[30,-87],[29,-83],[29,-81],[28,-80],[26,-80],[25,-80],[25,-81],[26,-82],[24,-82],[24,-81],[25,-80],[24,-80],[25,-79],[26,-77],[28,-77],[30,-80],[31,-81],[32,-80],[33,-79],[34,-78],[35,-76],[36,-76],[37,-76],[38,-75],[39,-74],[40,-74],[41,-72],[42,-70],[43,-70],[44,-67],[45,-64],[44,-63],[43,-66],[42,-70],[41,-70],[40,-72],[41,-70],[42,-70],[43,-65],[44,-63],[45,-61],[46,-60],[47,-54],[48,-53],[49,-53],[50,-57],[51,-56],[52,-55],[53,-58],[54,-60],[53,-58],[52,-56],[51,-55],[50,-57],[49,-54],[48,-53],[47,-54],[46,-53],[47,-54],[48,-57],[50,-60],[51,-58],[52,-55],[53,-53],[54,-57],[55,-60],[56,-60],[57,-62],[58,-64],[57,-64],[56,-66],[55,-64],[56,-60],[57,-58],[58,-62],[59,-65],[60,-65],[61,-64],[62,-64],[62,-68],[63,-68],[64,-70],[65,-72],[65,-75],[66,-76],[67,-78],[68,-78],[69,-80],[70,-85],[70,-90],[70,-97],[71,-100],[71,-105],[71,-110],[71,-115],[71,-120],[71,-130],[71,-140],[71,-156]],
+  // ── ALASKA peninsula ──
+  [[55,-160],[56,-158],[57,-157],[58,-156],[58,-152],[57,-153],[56,-156],[55,-160]],
+  // ── BAJA CALIFORNIA ──
+  [[32,-117],[31,-115],[29,-112],[28,-111],[27,-110],[25,-110],[23,-110],[22,-110],[22,-106],[24,-106],[25,-109],[27,-112],[29,-113],[30,-115],[31,-116],[32,-117]],
+  // ── CUBA ──
+  [[22,-84],[22,-82],[21,-80],[20,-77],[20,-75],[21,-75],[22,-78],[23,-81],[23,-83],[22,-84]],
+  // ── HISPANIOLA ──
+  [[18,-72],[18,-69],[19,-69],[19,-72],[18,-72]],
+  // ── FLORIDA PENINSULA ──
+  [[28,-80],[26,-80],[25,-80],[24,-81],[24,-82],[25,-81],[26,-80],[27,-80],[28,-80]],
+  // ── GREENLAND ──
+  [[76,-20],[77,-24],[78,-26],[79,-27],[80,-27],[81,-25],[82,-23],[83,-30],[83,-40],[82,-45],[81,-50],[80,-52],[79,-56],[78,-57],[77,-58],[76,-57],[75,-56],[74,-58],[73,-57],[72,-55],[72,-51],[73,-48],[73,-45],[72,-44],[71,-43],[70,-44],[69,-52],[69,-54],[68,-52],[68,-50],[67,-52],[67,-53],[66,-52],[65,-52],[65,-50],[66,-45],[66,-42],[65,-40],[64,-42],[63,-42],[63,-44],[62,-46],[60,-44],[60,-44],[61,-48],[60,-48],[60,-50],[59,-48],[58,-46],[58,-44],[59,-44],[60,-45],[61,-44],[62,-46],[63,-44],[64,-41],[65,-40],[66,-40],[67,-37],[68,-35],[69,-28],[70,-25],[71,-22],[72,-22],[73,-22],[74,-20],[75,-20],[76,-20]],
+  // ── SOUTH AMERICA ──
+  [[12,-72],[11,-64],[10,-62],[9,-60],[8,-60],[7,-58],[6,-57],[5,-53],[4,-52],[3,-51],[2,-50],[1,-50],[0,-50],[-1,-49],[-2,-45],[-3,-42],[-3,-38],[-4,-38],[-5,-36],[-6,-35],[-7,-35],[-8,-35],[-9,-36],[-10,-37],[-10,-36],[-11,-37],[-12,-38],[-13,-39],[-14,-39],[-15,-39],[-16,-40],[-17,-39],[-18,-39],[-19,-40],[-20,-41],[-21,-41],[-22,-42],[-22,-43],[-23,-44],[-23,-45],[-24,-46],[-24,-48],[-25,-48],[-26,-49],[-27,-49],[-28,-49],[-29,-50],[-30,-51],[-31,-51],[-32,-52],[-33,-53],[-34,-53],[-34,-53],[-35,-57],[-36,-57],[-37,-57],[-38,-58],[-39,-62],[-40,-62],[-40,-63],[-41,-63],[-42,-63],[-43,-65],[-44,-66],[-45,-65],[-46,-66],[-47,-66],[-48,-66],[-49,-68],[-50,-68],[-51,-69],[-52,-68],[-53,-68],[-53,-69],[-52,-70],[-51,-69],[-50,-68],[-49,-68],[-48,-66],[-47,-66],[-46,-68],[-45,-65],[-45,-67],[-44,-66],[-55,-64],[-54,-64],[-53,-60],[-52,-58],[-51,-58],[-52,-58],[-53,-60],[-53,-64],[-52,-64],[-51,-61],[-50,-58],[-49,-58],[-48,-57],[-47,-56],[-46,-52],[-45,-50],[-44,-48],[-43,-46],[-42,-44],[-40,-44],[-38,-44],[-36,-44],[-34,-44],[-32,-46],[-30,-50],[-28,-49],[-26,-48],[-24,-46],[-22,-43],[-20,-40],[-18,-39],[-16,-40],[-14,-40],[-12,-38],[-10,-36],[-8,-35],[-6,-35],[-4,-38],[-2,-44],[0,-50],[2,-51],[4,-52],[5,-52],[6,-56],[7,-58],[8,-60],[9,-61],[10,-62],[11,-63],[12,-64],[12,-67],[11,-70],[11,-72],[12,-72]],
+  // ── EUROPE (West) ──
+  [[36,6],[36,9],[37,9],[38,9],[38,8],[39,8],[39,9],[40,8],[40,3],[41,2],[42,3],[43,5],[44,8],[44,7],[43,5],[44,4],[44,5],[45,6],[46,8],[47,8],[47,9],[48,8],[49,8],[50,8],[50,5],[51,4],[51,3],[52,4],[52,5],[53,8],[53,9],[54,9],[54,8],[55,8],[55,10],[54,10],[54,12],[55,14],[55,15],[56,14],[56,14],[57,12],[58,11],[59,11],[59,10],[60,10],[60,11],[61,11],[62,9],[63,8],[64,8],[64,9],[65,11],[65,14],[64,16],[63,18],[62,18],[61,17],[60,18],[59,18],[59,16],[58,18],[58,16],[57,18],[57,16],[56,16],[56,18],[55,18],[54,18],[54,16],[53,14],[54,12],[55,14],[55,14],[56,12],[57,12],[58,10],[58,12],[59,14],[60,14],[60,12],[61,14],[62,14],[63,16],[64,16],[65,16],[65,14],[66,14],[66,16],[67,16],[67,18],[68,18],[68,16],[69,16],[69,18],[70,20],[70,22],[71,24],[70,26],[69,28],[68,26],[67,24],[66,22],[65,22],[64,20],[63,20],[62,22],[61,20],[60,20],[59,20],[58,22],[58,20],[57,22],[56,22],[55,22],[55,24],[56,24],[56,26],[55,26],[54,22],[53,20],[52,20],[51,18],[50,18],[49,18],[48,18],[48,16],[47,16],[46,16],[45,14],[44,14],[44,16],[45,14],[44,14],[44,12],[43,12],[42,12],[42,14],[41,16],[40,18],[39,20],[38,22],[37,22],[36,22],[36,20],[38,20],[38,22],[36,22],[36,6]],
+  // ── IBERIAN PENINSULA ──
+  [[36,6],[37,8],[38,8],[39,8],[40,8],[41,8],[42,9],[43,8],[43,3],[42,3],[41,2],[40,1],[39,0],[38,-1],[37,-2],[36,-3],[36,-5],[36,-6],[36,-8],[37,-8],[37,-9],[38,-9],[38,-8],[37,-9],[36,-9],[36,-7],[37,-6],[37,-5],[36,-4],[36,-2],[37,-1],[38,0],[38,-1],[38,0],[38,1],[39,1],[39,0],[40,0],[40,2],[41,2],[42,3],[42,1],[41,0],[41,2],[42,3],[43,4],[43,5],[44,4],[44,3],[43,3],[43,8],[42,9],[41,8],[40,8],[39,9],[38,9],[37,9],[36,9],[36,6]],
+  // ── BRITISH ISLES ──
+  [[50,-5],[50,-3],[51,-3],[51,-4],[52,-5],[52,-4],[53,-4],[53,-3],[54,-2],[55,-2],[55,-3],[56,-3],[56,-5],[57,-6],[58,-6],[58,-5],[57,-4],[57,-3],[58,-2],[58,0],[57,0],[56,0],[55,0],[55,-1],[54,-1],[54,0],[53,0],[53,-1],[52,0],[51,0],[51,-2],[50,-3],[50,-5]],
+  [[54,-6],[54,-8],[55,-8],[55,-7],[56,-6],[56,-8],[57,-8],[57,-6],[58,-6],[58,-5],[57,-5],[57,-6],[56,-6],[55,-7],[54,-6]],
+  // ── SCANDINAVIA ──
+  [[57,8],[57,10],[58,10],[58,12],[59,11],[59,10],[60,10],[60,11],[61,11],[62,9],[63,8],[64,8],[65,10],[65,14],[66,14],[67,14],[67,16],[68,16],[68,18],[69,18],[69,16],[70,16],[70,20],[71,24],[70,26],[69,28],[68,26],[67,24],[66,22],[65,22],[64,20],[63,20],[62,22],[61,20],[60,20],[59,20],[58,22],[57,22],[56,22],[55,22],[55,24],[55,22],[54,20],[53,18],[52,18],[51,18],[50,18],[49,16],[48,16],[47,16],[46,16],[45,14],[46,14],[47,12],[48,12],[49,10],[48,10],[47,10],[46,8],[45,8],[44,8],[43,5],[44,4],[44,3],[43,5],[44,8],[44,7],[43,5],[43,4],[42,3],[41,2],[40,3],[39,9],[38,9],[37,9],[36,9],[36,6],[36,6],[57,8]],
+  // ── AFRICA (detailed) ──
+  [[37,10],[37,12],[36,12],[36,10],[35,12],[34,14],[34,16],[33,16],[32,16],[32,14],[31,14],[30,14],[29,14],[28,14],[27,14],[26,14],[25,14],[24,14],[23,14],[22,14],[21,14],[20,14],[19,14],[18,14],[17,14],[16,14],[15,14],[14,14],[13,14],[12,14],[11,14],[10,14],[9,14],[8,14],[7,14],[7,12],[6,10],[5,8],[4,6],[3,4],[2,2],[1,2],[0,2],[-1,2],[-2,2],[-3,2],[-4,2],[-4,4],[-4,6],[-5,6],[-5,8],[-5,10],[-6,12],[-7,14],[-8,14],[-9,14],[-10,14],[-11,14],[-12,14],[-13,14],[-14,14],[-15,14],[-16,14],[-17,14],[-18,14],[-19,14],[-20,14],[-21,14],[-22,14],[-23,14],[-24,14],[-25,14],[-26,14],[-27,14],[-28,16],[-28,18],[-29,18],[-30,18],[-30,16],[-31,18],[-32,18],[-32,20],[-33,20],[-34,22],[-34,24],[-34,26],[-33,26],[-32,28],[-32,30],[-31,30],[-30,32],[-29,32],[-28,32],[-27,34],[-26,34],[-25,34],[-24,36],[-23,36],[-22,36],[-21,36],[-20,38],[-19,38],[-18,40],[-17,40],[-16,40],[-15,40],[-14,40],[-13,40],[-12,40],[-11,40],[-10,40],[-10,42],[-10,44],[-11,44],[-11,42],[-10,42],[-10,44],[-9,44],[-8,44],[-7,42],[-6,42],[-5,42],[-4,42],[-4,44],[-3,44],[-2,44],[-1,44],[0,44],[1,44],[2,44],[3,44],[4,44],[5,42],[5,40],[4,40],[5,38],[6,38],[7,38],[8,38],[9,38],[10,38],[11,40],[11,42],[10,44],[11,44],[11,42],[10,40],[11,40],[12,42],[12,44],[12,46],[11,46],[10,44],[10,46],[11,48],[11,50],[10,50],[9,50],[8,50],[8,48],[7,46],[6,44],[5,42],[6,44],[8,46],[10,50],[11,50],[11,48],[10,48],[11,50],[12,50],[12,52],[11,52],[11,50],[10,50],[11,50],[12,52],[12,54],[12,56],[11,56],[10,54],[9,52],[8,50],[7,48],[6,46],[5,44],[4,42],[3,42],[2,42],[1,42],[0,42],[-1,42],[-2,42],[-3,42],[-4,42],[-5,40],[-5,38],[-4,36],[-3,36],[-2,34],[-2,32],[-1,32],[0,32],[0,30],[0,28],[0,26],[1,24],[2,22],[3,20],[4,18],[5,16],[6,14],[8,12],[9,12],[10,10],[11,10],[12,12],[13,12],[14,10],[15,10],[16,10],[17,10],[18,10],[19,10],[20,10],[21,8],[22,8],[23,8],[24,8],[25,8],[26,8],[27,10],[28,12],[29,12],[30,12],[31,12],[32,12],[33,12],[34,12],[35,12],[36,12],[37,12],[37,10]],
+  // ── HORN OF AFRICA ──
+  [[11,44],[11,50],[10,50],[11,52],[12,52],[12,54],[11,52],[10,50],[10,44],[11,44]],
+  // ── MADAGASCAR ──
+  [[-12,50],[-14,48],[-16,46],[-18,44],[-20,44],[-22,44],[-24,44],[-25,46],[-24,48],[-22,50],[-20,48],[-18,48],[-16,50],[-14,50],[-12,50]],
+  // ── MIDDLE EAST / ARABIAN PENINSULA ──
+  [[37,36],[36,36],[35,36],[34,36],[33,36],[32,36],[31,36],[30,34],[29,34],[28,34],[27,36],[26,38],[25,40],[24,42],[23,44],[22,44],[21,44],[20,44],[19,42],[18,42],[17,42],[16,42],[15,42],[14,42],[13,42],[12,44],[12,46],[13,46],[14,46],[15,44],[16,44],[17,44],[17,46],[17,48],[18,50],[19,52],[20,54],[21,56],[22,58],[23,58],[24,56],[25,56],[26,56],[26,56],[25,56],[24,58],[23,58],[22,60],[21,60],[20,60],[19,58],[18,56],[17,54],[16,52],[15,50],[14,48],[13,46],[12,46],[12,48],[12,50],[12,46],[13,44],[14,44],[15,42],[16,40],[16,38],[17,38],[18,40],[19,40],[20,40],[21,40],[22,40],[23,40],[24,40],[24,38],[25,38],[26,36],[27,36],[28,34],[29,34],[30,34],[31,36],[32,36],[33,36],[34,36],[35,36],[36,36],[37,36]],
+  // ── TURKEY / ANATOLIA ──
+  [[36,26],[36,28],[36,30],[37,32],[38,34],[38,36],[37,36],[36,36],[36,38],[37,40],[38,40],[39,40],[40,40],[41,40],[42,40],[42,38],[41,36],[40,36],[41,34],[42,32],[41,30],[40,28],[39,26],[38,26],[37,26],[36,26]],
+  // ── CASPIAN / IRAN / CAUCASUS ──
+  [[38,44],[39,46],[40,48],[41,50],[42,50],[42,48],[41,46],[40,44],[39,44],[38,44]],
+  // ── INDIAN SUBCONTINENT ──
+  [[24,68],[22,68],[20,68],[18,68],[16,74],[14,74],[12,76],[10,78],[8,78],[8,80],[9,80],[10,80],[11,80],[12,80],[13,80],[13,78],[14,78],[15,80],[16,80],[16,82],[17,82],[18,84],[19,86],[20,86],[21,88],[22,88],[23,88],[23,90],[22,90],[21,88],[22,88],[23,90],[23,92],[22,92],[21,92],[20,90],[19,88],[18,86],[18,84],[19,84],[20,86],[21,88],[22,88],[23,86],[24,84],[24,82],[24,80],[25,78],[26,76],[27,72],[28,72],[28,70],[27,68],[26,68],[25,68],[24,68]],
+  // ── SRI LANKA ──
+  [[10,80],[9,80],[8,80],[8,82],[9,82],[10,80]],
+  // ── SOUTHEAST ASIA MAINLAND ──
+  [[28,96],[26,96],[24,96],[22,96],[20,98],[18,100],[16,100],[14,100],[12,100],[10,100],[8,100],[6,100],[4,100],[2,100],[2,102],[2,104],[1,104],[0,104],[1,104],[2,104],[3,102],[4,100],[5,100],[6,98],[8,98],[8,100],[9,100],[10,100],[11,100],[12,100],[13,100],[13,102],[12,104],[11,106],[11,108],[12,108],[13,106],[14,104],[15,102],[16,100],[17,100],[18,98],[20,98],[22,98],[24,98],[24,96],[26,96],[28,96]],
+  // ── MALAY PENINSULA ──
+  [[5,100],[4,102],[3,102],[2,104],[1,104],[2,104],[3,104],[4,104],[5,102],[6,100],[5,100]],
+  // ── BORNEO ──
+  [[2,108],[1,110],[0,110],[0,112],[1,114],[2,116],[3,116],[4,114],[5,112],[6,112],[7,114],[6,116],[5,118],[4,118],[3,116],[2,116],[1,114],[0,114],[0,116],[1,116],[2,118],[3,118],[4,118],[5,116],[6,114],[7,112],[6,110],[5,110],[4,110],[3,110],[2,108]],
+  // ── SUMATRA ──
+  [[6,96],[5,96],[4,96],[3,96],[2,96],[1,96],[0,98],[0,100],[1,102],[2,102],[3,104],[4,104],[5,102],[6,100],[6,96]],
+  // ── JAVA ──
+  [[-6,106],[-7,108],[-8,110],[-8,112],[-8,114],[-7,114],[-7,112],[-7,110],[-7,108],[-6,108],[-6,106]],
+  // ── PHILIPPINES ──
+  [[10,122],[10,124],[11,124],[12,122],[12,120],[10,120],[10,122]],
+  [[8,124],[8,126],[9,126],[10,124],[9,124],[8,124]],
+  // ── CHINA / EAST ASIA (mainland) ──
+  [[22,114],[22,112],[22,110],[20,110],[18,110],[16,108],[14,108],[12,106],[10,104],[10,102],[12,100],[14,100],[16,100],[18,100],[20,100],[22,100],[24,100],[26,100],[26,98],[28,98],[28,96],[30,96],[30,94],[32,92],[32,90],[34,88],[36,86],[38,84],[38,82],[40,80],[40,78],[42,76],[42,74],[44,72],[44,70],[46,68],[48,66],[50,68],[52,68],[54,70],[56,68],[58,66],[60,64],[62,62],[62,60],[60,60],[60,62],[58,62],[56,60],[54,60],[52,60],[52,58],[54,56],[54,54],[52,52],[50,52],[48,54],[46,54],[44,54],[42,52],[42,50],[42,48],[42,46],[44,44],[44,42],[42,42],[40,42],[40,44],[38,46],[36,46],[34,44],[34,42],[36,40],[38,40],[38,38],[36,36],[36,34],[36,32],[36,30],[36,28],[36,26],[38,26],[40,28],[42,30],[44,30],[44,32],[46,32],[48,34],[50,36],[52,36],[52,38],[54,38],[54,40],[56,40],[56,42],[58,42],[60,42],[62,42],[62,44],[64,42],[64,40],[66,40],[68,40],[68,38],[70,38],[72,38],[72,40],[74,42],[76,44],[78,46],[78,48],[80,50],[80,52],[82,52],[82,54],[80,56],[80,58],[80,60],[78,60],[78,62],[76,62],[74,62],[74,64],[72,64],[72,66],[70,66],[70,68],[68,68],[68,70],[66,70],[66,72],[64,72],[64,74],[62,74],[60,74],[58,74],[56,74],[54,74],[52,72],[50,72],[48,70],[46,68],[44,70],[44,72],[42,74],[40,78],[40,80],[38,82],[38,84],[36,86],[34,88],[32,90],[32,92],[30,94],[30,96],[28,98],[26,98],[24,100],[22,100],[20,100],[20,102],[20,104],[21,106],[22,108],[22,110],[22,112],[22,114]],
+  // ── KOREAN PENINSULA ──
+  [[34,126],[34,128],[35,128],[35,130],[36,130],[37,130],[38,128],[38,126],[37,126],[36,126],[35,126],[34,126]],
+  // ── JAPAN (Honshu) ──
+  [[30,130],[31,130],[32,130],[33,130],[33,132],[33,134],[34,136],[35,136],[35,138],[35,140],[36,140],[37,140],[38,140],[39,140],[40,140],[40,142],[39,142],[38,142],[37,142],[36,140],[35,140],[34,138],[33,136],[33,134],[32,132],[31,130],[30,130]],
+  // ── HOKKAIDO ──
+  [[42,140],[42,142],[43,144],[44,144],[44,142],[43,140],[42,140]],
+  // ── TAIWAN ──
+  [[22,120],[22,122],[23,122],[24,122],[25,122],[25,120],[24,120],[23,120],[22,120]],
+  // ── RUSSIA (western) ──
+  [[55,22],[56,24],[57,26],[58,28],[59,28],[60,28],[60,30],[61,30],[62,30],[63,30],[64,30],[64,32],[65,32],[65,34],[66,34],[66,36],[67,36],[68,36],[68,38],[69,38],[70,38],[70,36],[71,36],[71,38],[72,38],[72,40],[73,40],[73,42],[72,44],[72,46],[73,46],[74,46],[75,46],[75,44],[76,44],[76,46],[77,48],[78,50],[79,52],[80,52],[80,54],[79,56],[79,58],[78,60],[77,60],[77,62],[76,62],[76,64],[75,66],[74,68],[73,70],[72,70],[72,68],[71,68],[70,68],[70,66],[69,66],[68,68],[68,66],[67,66],[66,66],[65,66],[64,66],[64,68],[63,68],[62,68],[62,70],[61,70],[60,70],[60,68],[59,68],[58,68],[58,66],[57,66],[56,66],[55,66],[54,66],[53,66],[52,66],[51,68],[50,68],[49,68],[48,68],[48,66],[47,66],[46,66],[45,66],[44,66],[43,66],[42,66],[41,68],[40,68],[39,66],[38,66],[37,66],[36,66],[35,66],[34,64],[34,62],[35,60],[36,58],[36,56],[37,56],[37,54],[36,52],[36,50],[37,48],[38,46],[38,44],[38,42],[40,42],[40,40],[40,38],[42,38],[42,36],[42,34],[42,32],[42,30],[44,30],[44,28],[42,28],[40,28],[40,26],[41,26],[42,24],[43,24],[44,22],[44,20],[46,20],[46,22],[48,22],[48,20],[50,20],[50,18],[52,18],[52,20],[54,20],[54,22],[55,22]],
+  // ── RUSSIA (Siberia / Far East) ──
+  [[55,160],[56,160],[57,162],[58,162],[59,162],[60,162],[61,162],[62,162],[63,162],[64,162],[65,162],[65,160],[66,160],[67,160],[68,162],[69,162],[70,162],[70,160],[71,160],[71,158],[72,158],[72,156],[73,156],[73,158],[74,158],[74,160],[73,162],[72,162],[71,162],[70,162],[69,162],[68,162],[67,162],[66,162],[65,162],[64,162],[63,162],[62,162],[61,162],[60,162],[59,162],[58,162],[57,162],[56,162],[55,160]],
+  [[55,142],[56,140],[58,138],[60,140],[62,142],[63,142],[64,144],[65,144],[65,142],[66,142],[67,142],[68,142],[68,140],[69,140],[70,142],[70,144],[69,146],[68,148],[67,150],[66,152],[65,152],[64,152],[63,152],[62,150],[62,148],[61,148],[60,148],[60,146],[59,146],[58,144],[57,142],[56,142],[55,142]],
+  // ── AUSTRALIA (detailed) ──
+  [[-14,130],[-14,132],[-14,134],[-14,136],[-15,136],[-15,138],[-16,140],[-17,140],[-18,140],[-18,142],[-18,144],[-19,146],[-20,146],[-21,148],[-22,148],[-22,150],[-23,150],[-24,152],[-25,152],[-26,152],[-27,152],[-28,154],[-29,154],[-30,154],[-31,154],[-32,152],[-33,152],[-34,152],[-35,150],[-36,150],[-37,150],[-38,148],[-38,146],[-38,144],[-37,142],[-36,140],[-37,140],[-38,140],[-38,138],[-38,140],[-37,140],[-36,140],[-35,138],[-34,136],[-34,134],[-35,136],[-35,138],[-36,140],[-37,140],[-38,140],[-38,138],[-37,136],[-36,136],[-35,134],[-34,132],[-33,130],[-32,128],[-32,126],[-31,124],[-30,122],[-29,120],[-28,118],[-27,116],[-26,114],[-25,114],[-24,114],[-23,114],[-22,114],[-21,116],[-20,118],[-19,118],[-18,118],[-17,120],[-16,122],[-15,124],[-14,128],[-14,130]],
+  // ── TASMANIA ──
+  [[-41,146],[-42,146],[-43,146],[-43,148],[-42,148],[-41,148],[-41,146]],
+  // ── NEW ZEALAND (North Island) ──
+  [[-36,174],[-37,174],[-38,176],[-38,178],[-39,176],[-40,176],[-41,174],[-40,172],[-39,174],[-38,174],[-37,174],[-36,174]],
+  // ── NEW ZEALAND (South Island) ──
+  [[-41,172],[-42,172],[-43,170],[-44,168],[-45,168],[-46,168],[-45,170],[-44,172],[-43,172],[-42,172],[-41,172]],
+]; // end unused
+
+</script>
+</body>
+</html>
