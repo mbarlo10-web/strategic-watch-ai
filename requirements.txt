@@ -19,9 +19,6 @@ altair==4.2.2
 
 plotly
 
-# Pillow 10.4.0 currently has build issues on Streamlit Cloud; pin to a prebuilt wheel.
-pillow<10.4
-
 fastapi
 uvicorn
 
