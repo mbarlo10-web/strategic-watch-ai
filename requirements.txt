@@ -19,6 +19,8 @@ altair==4.2.2
 
 plotly
 
+Pillow==9.5.0
+
 fastapi
 uvicorn
 
