@@ -25,6 +25,8 @@ ENV/
 *.log
 logs/
 
+.specstory/
+
 briefings/
 cache/
 data/last_run.json
