@@ -4,6 +4,8 @@
 
 Strategic Watch AI is an open-source intelligence (OSINT) platform that monitors global geopolitical hotspots and generates automated intelligence summaries using large language models. It demonstrates the application of AI to real-world geopolitical risk monitoring and executive decision support—the kind of system used by defense contractors, geopolitical risk firms, intelligence analysts, and strategy teams.
 
+![AI System Architecture](assets/ChatGPT_Image_Mar_15__2026__08_47_31_PM-5a8b828c-ce8c-49ae-aab3-4327f549f174.png)
+
 ---
 
 ## What It Does
