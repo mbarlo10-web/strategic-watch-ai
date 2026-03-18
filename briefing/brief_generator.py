@@ -196,6 +196,7 @@ def generate_brief(top5: List[Dict[str, Any]], trend: str) -> Dict[str, Any]:
     brief.setdefault("brief_date", datetime.utcnow().strftime("%Y-%m-%d"))
     # Mirror keys expected by dashboard_app.py
     brief.setdefault("date", brief.get("brief_date"))
+    brief.setdefault("headline", brief.get("title", "Intelligence Brief"))
     brief.setdefault("overall_confidence", brief.get("analytic_confidence", "High"))
     return brief
 

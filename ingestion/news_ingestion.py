@@ -87,8 +87,8 @@ def get_newsapi_key() -> str:
 def fetch_articles_for_topic(
     topic_name: str,
     query: str,
-    from_days_ago: int = 3,
-    page_size: int = 20,
+    from_days_ago: int = 2,
+    page_size: int = 10,
     language: str = "en",
     sort_by: str = "publishedAt",
 ) -> List[Dict[str, Any]]:
@@ -106,13 +106,32 @@ def fetch_articles_for_topic(
     }
 
     response = requests.get(NEWS_API_URL, params=params, timeout=30)
-    response.raise_for_status()
-    data = response.json()
 
-    if data.get("status") != "ok":
-        raise RuntimeError(f"NewsAPI returned an error: {data}")
+    if response.status_code == 401:
+        print(f"[NewsAPI] 401 Unauthorized for {topic_name} — check NEWSAPI_KEY in .env")
+        return []
+    if response.status_code == 429:
+        print(f"[NewsAPI] 429 Rate limit hit for {topic_name} — free tier is 100 req/day")
+        return []
+    if response.status_code == 426:
+        print(f"[NewsAPI] 426 Upgrade required for {topic_name} — free tier doesn't support this query. Simplifying...")
+        # Retry with a simpler query
+        simple_params = {**params, "q": topic_name.split("-")[0]}
+        r2 = requests.get(NEWS_API_URL, params=simple_params, timeout=30)
+        if r2.status_code == 200:
+            data = r2.json()
+            articles = data.get("articles", [])
+        else:
+            return []
+    else:
+        response.raise_for_status()
+        data = response.json()
+        if data.get("status") != "ok":
+            print(f"[NewsAPI] Error for {topic_name}: {data.get('message', data)}")
+            return []
+        articles = data.get("articles", [])
 
-    articles = data.get("articles", [])
+    print(f"[NewsAPI] {topic_name}: {len(articles)} articles")
     cleaned_articles: List[Dict[str, Any]] = []
 
     for article in articles:

@@ -12,29 +12,29 @@
   --bg: #05070f;
   --bg2: #080a14;
   --bg3: #0a0d1a;
-  --border: rgba(0,210,230,0.1);
-  --border2: rgba(0,210,230,0.06);
-  --teal: #00d4e8;
-  --teal-dim: rgba(0,212,232,0.4);
-  --teal-glow: rgba(0,212,232,0.15);
-  --red: #ff3355;
-  --orange: #ff8800;
-  --green: #00cc77;
-  --text-primary: #e8f2ff;
-  --text-secondary: rgba(180,210,230,0.75);
-  --text-dim: rgba(120,160,190,0.45);
+  --border: rgba(0,210,230,0.12);
+  --border2: rgba(0,210,230,0.08);
+  --teal: #00e0ff;
+  --teal-dim: rgba(0,224,255,0.55);
+  --teal-glow: rgba(0,224,255,0.2);
+  --red: #ff445f;
+  --orange: #ff9a1a;
+  --green: #00dd88;
+  --text-primary: #f0f6ff;
+  --text-secondary: rgba(190,220,245,0.9);
+  --text-dim: rgba(140,180,210,0.6);
   --mono: 'IBM Plex Mono', monospace;
   --display: 'Orbitron', monospace;
   --body: 'Rajdhani', sans-serif;
 }
 
-html, body { height: 100%; overflow: hidden; }
+html, body { height: 100%; overflow: auto; }
 
 body {
   background: var(--bg);
   color: var(--text-primary);
   font-family: var(--body);
-  font-size: 18px;
+  font-size: 17px;
   background-image:
     radial-gradient(ellipse 70% 50% at 15% 15%, rgba(0,100,180,0.07) 0%, transparent 60%),
     radial-gradient(ellipse 50% 70% at 85% 85%, rgba(80,30,160,0.05) 0%, transparent 60%);
@@ -48,12 +48,13 @@ body {
 
 /* ══════════════ HEADER ══════════════ */
 .header {
-  /* no fixed positioning so it sits naturally below the top padding band */
-  position: relative;
-  height: 60px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  height: 56px;
   display: flex; align-items: center; justify-content: space-between;
-  padding: 0 28px;
-  background: rgba(5,7,15,0.92);
+  padding: 0 20px;
+  background: rgba(5,7,15,0.97);
   border-bottom: 1px solid var(--border);
   backdrop-filter: blur(20px);
 }
@@ -80,7 +81,7 @@ body {
 .header-kpis { display: flex; gap: 28px; align-items: center; }
 .kpi { text-align: center; }
 .kpi-val {
-  font-family: var(--display); font-size: 26px; font-weight: 900;
+  font-family: var(--display); font-size: 20px; font-weight: 900;
   color: var(--teal); line-height: 1.1;
 }
 .kpi-val.danger { color: var(--red); }
@@ -143,12 +144,12 @@ body {
 /* ══════════════ LAYOUT ══════════════ */
 .layout {
   display: grid;
-  /* widen left & right columns, slightly reduce center to reclaim unused map whitespace */
-  grid-template-columns: 260px 0.9fr 420px;
-  grid-template-rows: calc(100vh - 60px);
+  grid-template-columns: 180px 0.55fr 0.8fr;
+  grid-template-rows: auto;
   margin-top: 0;
-  height: calc(100vh - 60px);
-  overflow: hidden;
+  height: auto;
+  min-height: calc(100vh - 60px);
+  overflow: visible;
 }
 
 /* ── LEFT NAV ── */
@@ -157,6 +158,10 @@ body {
   border-right: 1px solid var(--border2);
   display: flex; flex-direction: column;
   overflow-y: auto;
+  max-height: calc(100vh - 60px);
+  position: sticky;
+  top: 0;
+  align-self: start;
 }
 .nav-section { padding: 16px 14px; border-bottom: 1px solid var(--border2); }
 .nav-head {
@@ -186,11 +191,122 @@ body {
 
 .nav-controls { padding: 14px; margin-top: auto; border-top: 1px solid var(--border2); }
 .nav-run-btn {
-  width: 100%; padding: 10px; background: rgba(0,212,232,0.03);
-  border: 1px solid rgba(0,212,232,0.2); color: var(--teal-dim);
-  font-family: var(--body); font-weight: 600; font-size: 12px; letter-spacing: 2px;
-  cursor: default; text-transform: uppercase;
-  pointer-events: none;
+  width: 100%; padding: 11px 10px;
+  background: rgba(0,212,232,0.07);
+  border: 1px solid rgba(0,212,232,0.35);
+  color: var(--teal);
+  font-family: var(--mono); font-weight: 600; font-size: 11px; letter-spacing: 2px;
+  cursor: pointer; text-transform: uppercase;
+  pointer-events: auto;
+  transition: all 0.2s ease;
+  border-radius: 2px;
+}
+.nav-run-btn:hover {
+  color: #05070f;
+  background: var(--teal);
+  border-color: var(--teal);
+  box-shadow: 0 0 18px rgba(0,212,232,0.35);
+}
+.nav-run-btn:active { transform: translateY(1px); }
+
+/* ── pipeline modal ── */
+.modal-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(5,7,15,0.78);
+  backdrop-filter: blur(6px);
+  display: none;
+  align-items: center; justify-content: center;
+  z-index: 200;
+}
+.modal-backdrop.open { display: flex; }
+.modal {
+  width: min(520px, calc(100vw - 32px));
+  border-radius: 4px;
+  border: 1px solid rgba(0,212,232,0.22);
+  background: linear-gradient(180deg, rgba(8,10,20,0.98), rgba(5,7,15,0.98));
+  box-shadow: 0 20px 80px rgba(0,0,0,0.65);
+  overflow: hidden;
+}
+.modal-head {
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(0,212,232,0.12);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.modal-title {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: var(--teal-dim);
+  text-transform: uppercase;
+}
+.modal-close {
+  background: transparent;
+  border: 1px solid rgba(0,212,232,0.18);
+  color: rgba(180,210,230,0.75);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+.modal-close:hover { border-color: rgba(0,212,232,0.45); color: var(--teal); }
+.modal-body { padding: 14px 16px 16px; }
+.field { margin-bottom: 12px; }
+.field-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+.field-row { display: flex; gap: 10px; align-items: center; }
+.select, .range {
+  width: 100%;
+  background: rgba(0,212,232,0.04);
+  border: 1px solid rgba(0,212,232,0.22);
+  color: var(--text-primary);
+  padding: 10px 12px;
+  border-radius: 2px;
+  outline: none;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+.range { padding: 10px 8px; }
+.range-val {
+  font-family: var(--display);
+  font-size: 14px;
+  letter-spacing: 2px;
+  color: var(--teal);
+  min-width: 56px;
+  text-align: right;
+}
+.modal-actions {
+  display: flex; gap: 10px; justify-content: flex-end;
+  margin-top: 14px;
+}
+.btn {
+  padding: 10px 12px;
+  border-radius: 2px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  cursor: pointer;
+  border: 1px solid rgba(0,212,232,0.22);
+}
+.btn-secondary { background: transparent; color: rgba(180,210,230,0.75); }
+.btn-secondary:hover { border-color: rgba(0,212,232,0.45); color: var(--teal); }
+.btn-primary { background: rgba(0,212,232,0.12); color: var(--teal); border-color: rgba(0,212,232,0.35); }
+.btn-primary:hover { background: rgba(0,212,232,0.18); }
+.modal-hint {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+  line-height: 1.7;
+  margin-top: 10px;
 }
 
 .nav-sources { padding: 12px 14px; }
@@ -205,7 +321,7 @@ body {
 .src-dot.t2 { background: var(--text-dim); }
 
 /* ══════════════ MAIN ══════════════ */
-.main { overflow-y: auto; padding: 60px 24px 22px; }
+.main { overflow-y: visible; padding: 20px 24px 40px; }
 
 /* ── section headers ── */
 .section-head {
@@ -223,9 +339,13 @@ body {
 
 /* ── MAP ── */
 .map-container {
-  position: relative; border: 1px solid var(--border);
-  background: #070c18; margin-bottom: 22px;
-  border-radius: 3px; overflow: hidden;
+  position: relative;
+  max-width: 1120px;
+  margin: 0 auto 22px;
+  border: 1px solid var(--border);
+  background: #070c18;
+  border-radius: 3px;
+  overflow: hidden;
 }
 .map-canvas { width: 100%; display: block; }
 .map-legend {
@@ -276,7 +396,7 @@ body {
 }
 .risk-info {}
 .risk-title {
-  font-size: 20px; font-weight: 800; color: var(--text-primary);
+  font-size: 15px; font-weight: 800; color: var(--text-primary);
   line-height: 1.45; margin-bottom: 10px; letter-spacing: 0.4px;
 }
 .risk-meta {
@@ -303,7 +423,11 @@ body {
   background: rgba(5,7,15,0.6);
   border-left: 1px solid var(--border2);
   display: flex; flex-direction: column;
-  overflow: hidden;
+  overflow: auto;
+  max-height: calc(100vh - 60px);
+  position: sticky;
+  top: 0;
+  align-self: start;
 }
 
 /* tab bar */
@@ -320,13 +444,13 @@ body {
 .panel-tab:hover { color: var(--text-secondary); }
 .panel-tab.active { color: var(--teal); border-bottom-color: var(--teal); }
 
-.panel-body { flex: 1; overflow-y: auto; padding: 18px 16px; }
+.panel-body { flex: 1; overflow-y: auto; padding: 18px 12px 22px 12px; }
 .panel-section { display: none; }
 .panel-section.active { display: block; }
 
 /* brief */
 .brief-headline {
-  font-size: 22px; font-weight: 900; color: var(--text-primary);
+  font-size: 21px; font-weight: 900; color: var(--text-primary);
   line-height: 1.4; margin-bottom: 12px; letter-spacing: 0.3px;
 }
 .brief-date {
@@ -335,7 +459,7 @@ body {
 }
 .brief-body {
   font-size: 16px; font-weight: 500; color: var(--text-secondary);
-  line-height: 1.75; margin-bottom: 16px;
+  line-height: 1.7; margin-bottom: 18px;
 }
 .brief-sub-head {
   font-family: var(--mono); font-size: 9px; color: var(--teal-dim);
@@ -497,6 +621,49 @@ body {
 </head>
 <body>
 
+<!-- FULL-WIDTH HEADER -->
+<header class="header">
+  <div class="logo">
+    <div class="logo-mark">
+      <span></span><span></span><span></span><span></span>
+    </div>
+    <div class="logo-text">
+      <div class="logo-title">STRATEGIC WATCH AI</div>
+      <div class="logo-sub">// GEOPOLITICAL INTELLIGENCE · OSINT PIPELINE</div>
+    </div>
+  </div>
+
+  <div class="header-kpis">
+    <div class="kpi">
+      <div class="kpi-val danger">3</div>
+      <div class="kpi-label">High Risk</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-val warn">6</div>
+      <div class="kpi-label">Escalation</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-val">10</div>
+      <div class="kpi-label">Analyzed</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-val trend">▲ ESCALATING</div>
+      <div class="kpi-label">Global Trend</div>
+    </div>
+  </div>
+
+  <div class="header-right">
+    <div class="world-clock">
+      <div class="wc-city"><div class="wc-time" id="wc-dc">--:--</div><div class="wc-label">WASHINGTON</div></div>
+      <div class="wc-city"><div class="wc-time" id="wc-lon">--:--</div><div class="wc-label">LONDON</div></div>
+      <div class="wc-city"><div class="wc-time" id="wc-mos">--:--</div><div class="wc-label">MOSCOW</div></div>
+      <div class="wc-city"><div class="wc-time" id="wc-tok">--:--</div><div class="wc-label">TOKYO</div></div>
+    </div>
+    <div class="pill pill-live">PIPELINE LIVE</div>
+    <div class="pill pill-alert">▲ 3 HIGH ALERTS</div>
+  </div>
+</header>
+
 <!-- ══ LAYOUT ══ -->
 <div class="layout">
 
@@ -529,63 +696,19 @@ body {
       <div class="nav-source-item" data-source-match="Foreign Policy"><span class="src-dot t1"></span>FOREIGN POLICY <span class="nav-src-count"></span></div>
     </div>
     <div class="nav-controls">
-      <button class="nav-run-btn">PIPELINE RUNS FROM STREAMLIT SIDEBAR</button>
+      <button class="nav-run-btn" id="pipelineShortcut" title="Run pipeline (region + article count)">RUN INTELLIGENCE UPDATE</button>
     </div>
   </nav>
 
   <!-- ── MAIN ── -->
   <main class="main">
 
-    <!-- INLINE HEADER (moved down below host chrome) -->
-    <header class="header" style="margin-bottom:18px;">
-      <div class="logo">
-        <div class="logo-mark">
-          <span></span><span></span><span></span><span></span>
-        </div>
-        <div class="logo-text">
-          <div class="logo-title">STRATEGIC WATCH AI</div>
-          <div class="logo-sub">// GEOPOLITICAL INTELLIGENCE · OSINT PIPELINE</div>
-        </div>
-      </div>
-
-      <div class="header-kpis">
-        <div class="kpi">
-          <div class="kpi-val danger">3</div>
-          <div class="kpi-label">High Risk</div>
-        </div>
-        <div class="kpi">
-          <div class="kpi-val warn">6</div>
-          <div class="kpi-label">Escalation</div>
-        </div>
-        <div class="kpi">
-          <div class="kpi-val">10</div>
-          <div class="kpi-label">Analyzed</div>
-        </div>
-        <div class="kpi">
-          <div class="kpi-val trend">▲ ESCALATING</div>
-          <div class="kpi-label">Global Trend</div>
-        </div>
-      </div>
-
-      <div class="header-right">
-        <div class="world-clock">
-          <div class="wc-city"><div class="wc-time" id="wc-dc">--:--</div><div class="wc-label">WASHINGTON</div></div>
-          <div class="wc-city"><div class="wc-time" id="wc-lon">--:--</div><div class="wc-label">LONDON</div></div>
-          <div class="wc-city"><div class="wc-time" id="wc-mos">--:--</div><div class="wc-label">MOSCOW</div></div>
-          <div class="wc-city"><div class="wc-time" id="wc-tok">--:--</div><div class="wc-label">TOKYO</div></div>
-        </div>
-        <div class="pill pill-live">PIPELINE LIVE</div>
-        <div class="pill pill-alert">▲ 3 HIGH ALERTS</div>
-        <button class="run-btn">USE STREAMLIT SIDEBAR TO RUN</button>
-      </div>
-    </header>
-
     <!-- CONFLICT MAP -->
     <div id="section-conflict-map" class="section-head"><h2>Conflict Map — Top 5 Risks Plotted</h2></div>
     <div class="map-container" style="margin-bottom:22px;">
       <div class="map-label">// GLOBAL THEATER OVERVIEW · RISK LEVELS PLOTTED</div>
       <div class="map-label-right">● HIGH &nbsp; ● MED &nbsp; ● LOW</div>
-      <div id="worldMap" style="width:100%;height:340px;position:relative;"></div>
+      <div id="worldMap" style="width:100%;height:320px;position:relative;"></div>
       <div class="map-tooltip" id="mapTooltip">
         <div class="tt-title" id="tt-title"></div>
         <div class="tt-row"><span id="tt-risk"></span><span id="tt-score"></span></div>
@@ -869,6 +992,46 @@ body {
 
 </div><!-- end layout -->
 
+<!-- PIPELINE MODAL -->
+<div class="modal-backdrop" id="pipelineModal" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pipelineModalTitle">
+    <div class="modal-head">
+      <div class="modal-title" id="pipelineModalTitle">// Intelligence pipeline controls</div>
+      <button class="modal-close" id="pipelineModalClose">CLOSE</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <div class="field-label">Conflict region (optional)</div>
+        <select class="select" id="pipelineTheater">
+          <option value="">Global (all theaters)</option>
+          <option value="Russia-Ukraine">Russia – Ukraine</option>
+          <option value="Iran-Israel">Iran – Israel</option>
+          <option value="China-Taiwan">China – Taiwan</option>
+          <option value="North Korea">North Korea</option>
+          <option value="Venezuela">Venezuela</option>
+          <option value="Cuba">Cuba</option>
+          <option value="Defense">Defense (RSS)</option>
+        </select>
+      </div>
+      <div class="field">
+        <div class="field-label">Articles to analyze</div>
+        <div class="field-row">
+          <input class="range" id="pipelineN" type="range" min="5" max="15" step="1" value="10">
+          <div class="range-val" id="pipelineNVal">10</div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="pipelineCancel">Cancel</button>
+        <button class="btn btn-primary" id="pipelineRun">Run update</button>
+      </div>
+      <div class="modal-hint">
+        Runs the live ingestion → analysis → scoring pipeline in Streamlit and refreshes the dashboard with new items.
+        If your API quota is exhausted, the app may fall back to the last cached run.
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- TICKER -->
 <div class="ticker">
   <div class="ticker-label">// LIVE FEED</div>
@@ -1084,6 +1247,62 @@ document.addEventListener('DOMContentLoaded', () => {
   // Right-panel feed: show default message until a theater is selected
   renderTheaterFeed();
 
+  // Pipeline modal controls (bottom-left button opens modal; modal "Run update" posts SW_RUN_PIPELINE)
+  const pipelineShortcut = document.getElementById('pipelineShortcut');
+  const modal = document.getElementById('pipelineModal');
+  const closeBtn = document.getElementById('pipelineModalClose');
+  const cancelBtn = document.getElementById('pipelineCancel');
+  const runBtn = document.getElementById('pipelineRun');
+  const nRange = document.getElementById('pipelineN');
+  const nVal = document.getElementById('pipelineNVal');
+  const theaterSel = document.getElementById('pipelineTheater');
+
+  function openModal() { if (modal) { modal.classList.add('open'); modal.setAttribute('aria-hidden','false'); } }
+  function closeModal() { if (modal) { modal.classList.remove('open'); modal.setAttribute('aria-hidden','true'); } }
+
+  if (nRange && nVal) {
+    nVal.textContent = String(nRange.value || 10);
+    nRange.addEventListener('input', () => { nVal.textContent = String(nRange.value); });
+  }
+
+  if (pipelineShortcut) pipelineShortcut.addEventListener('click', openModal);
+  if (closeBtn) closeBtn.addEventListener('click', closeModal);
+  if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+  if (modal) modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+
+  if (runBtn) {
+    runBtn.addEventListener('click', () => {
+      const n = nRange ? parseInt(nRange.value||'10',10) : 10;
+      const theater = theaterSel ? (theaterSel.value||'') : '';
+      closeModal();
+      const btn = document.getElementById('pipelineShortcut');
+      if (btn) { btn.textContent = '⟳ RUNNING...'; btn.disabled = true; }
+      const msg = {type:'SW_RUN_PIPELINE', n: isNaN(n)?10:n, theater:theater};
+      try { window.parent.postMessage(JSON.stringify(msg), '*'); } catch(e){}
+      try {
+        const qs = new URLSearchParams();
+        qs.set('run','1'); qs.set('n',String(isNaN(n)?10:n));
+        if (theater) qs.set('theater',theater);
+        window.parent.location.search = '?'+qs.toString();
+      } catch(e) {
+        setTimeout(()=>{ if(btn){btn.textContent='RUN INTELLIGENCE UPDATE';btn.disabled=false;}},3000);
+      }
+    });
+  }
+
+  // If the page was loaded with a theater param, apply that filter automatically
+  try {
+    const parentSearch = (window.parent && window.parent.location) ? window.parent.location.search : window.location.search;
+    const params = new URLSearchParams(parentSearch || '');
+    const defaultTheater = params.get('theater');
+    if (defaultTheater && typeof window.__swSetTheater === 'function') {
+      window.__swSetTheater(defaultTheater);
+      const target = document.getElementById('section-intel-feed');
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  } catch (e) {}
+
   // Expose theater filter setter; when user clicks a theater, filter and switch to Search tab so feed updates are visible
   window.__swSetTheater = function (theaterKey) {
     currentTheater = theaterKey || null;
@@ -1239,7 +1458,7 @@ const RCOL = { H: '#ff3355', M: '#ff8800', L: '#00cc77' };
 
 function buildMap() {
   const container = document.getElementById('worldMap');
-  const W = container.clientWidth, H = 340;
+  const W = container.clientWidth, H = 320;
   container.innerHTML = '';
 
   const svg = d3.select('#worldMap').append('svg')

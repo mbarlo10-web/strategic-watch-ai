@@ -38,6 +38,12 @@ except Exception as e:  # noqa: BLE001
     PIPELINE_ERROR = e
     PIPELINE_AVAILABLE = False
 
+if not PIPELINE_AVAILABLE:
+    st.sidebar.error(f"Pipeline import error: {PIPELINE_ERROR}")
+    import traceback
+    print(f"[PIPELINE IMPORT ERROR] {PIPELINE_ERROR}")
+    traceback.print_exc()
+
 try:
     from ai_pipeline.rag_store import upsert_analyses
     RAG_STORE_AVAILABLE = True
@@ -146,7 +152,9 @@ def run_pipeline(n_articles: int = 10) -> dict:
             return build_dashboard_data([], "Stable", [], brief, [])
 
         with st.spinner("Running AI analysis..."):
+            print(f"[PIPELINE] Sending {len(filtered)} articles to OpenAI for analysis...")
             analyzed = analyze_articles(filtered)
+            print(f"[PIPELINE] AI returned {len(analyzed)} analyzed articles.")
 
         if not analyzed:
             print(f"[PIPELINE] No analyses: {len(filtered)} articles fetched but OpenAI returned 0. Check OPENAI_API_KEY.")
@@ -159,6 +167,10 @@ def run_pipeline(n_articles: int = 10) -> dict:
 
         with st.spinner("Scoring and ranking risks..."):
             top5, trend, escalation_items = score_and_rank(analyzed)
+            if top5:
+                print("[PIPELINE] Top5 sample URLs:")
+                for item in top5[:3]:
+                    print("   -", (item.get("title") or "")[:60], "=>", item.get("url") or "(no url)")
 
         with st.spinner("Generating executive brief..."):
             brief = generate_brief(top5, trend)
@@ -277,7 +289,14 @@ def build_dashboard_data(top5, trend, escalation_items, brief, all_analyzed) -> 
         "brief": {
             "headline":      brief.get("headline", ""),
             "summary":       brief.get("executive_summary", ""),
-            "regional":      brief.get("regional_updates", []),
+            "regional":      [
+                {
+                    "name": r.get("region", r.get("name", "")),
+                    "risk": r.get("risk_level", r.get("risk", "Medium")),
+                    "text": r.get("assessment", r.get("text", "")),
+                }
+                for r in brief.get("regional_updates", [])
+            ],
             "outlook":       brief.get("strategic_outlook", ""),
             "analyst_note":  brief.get("analyst_note", ""),
         },
@@ -326,11 +345,11 @@ def get_demo_data() -> dict:
             "analyst_note":"This brief synthesizes multiple high-confidence sources indicating active combat and strategic shifts in key regions.",
         },
         "top5": [
-            {"rank":1,"title":"Amid US military actions, White House struggles to explain how Iran war will end","risk":"High","theater":"Defense","conf":"High","source":"Defense News","score":0.971,"why":"US combat operations in Iran signal significant escalation. Lack of clear endgame increases risk of further destabilization.","url":"#"},
-            {"rank":2,"title":"Two Iranian warships take sanctuary in India and Sri Lanka","risk":"High","theater":"Defense","conf":"High","source":"Defense News","score":0.944,"why":"Naval combat actions raise significant kinetic military risk with potential to escalate regional tensions.","url":"#"},
-            {"rank":3,"title":"Iran to face 'most intense day of strikes,' Hegseth says","risk":"High","theater":"Defense","conf":"Medium","source":"Defense News","score":0.921,"why":"Parliament speaker rejection combined with warnings of intense strikes indicates high risk.","url":"#"},
-            {"rank":4,"title":"Australia deploys early-warning aircraft to the Middle East amid Iran attacks","risk":"Medium","theater":"Defense","conf":"High","source":"Defense News","score":0.756,"why":"Enhanced surveillance supports allied situational awareness while avoiding direct combat involvement.","url":"#"},
-            {"rank":5,"title":"Australian submariners have a brush with Iran war","risk":"Medium","theater":"Defense","conf":"Medium","source":"Defense News","score":0.712,"why":"Underwater combat tensions highlight risks of escalation. Allied cooperation raises stakes in maritime security.","url":"#"},
+            {"rank":1,"title":"Amid US military actions, White House struggles to explain how Iran war will end","risk":"High","theater":"Defense","conf":"High","source":"Defense News","score":0.971,"why":"US combat operations in Iran signal significant escalation. Lack of clear endgame increases risk of further destabilization.","url":"https://www.defensenews.com/"},
+            {"rank":2,"title":"Two Iranian warships take sanctuary in India and Sri Lanka","risk":"High","theater":"Defense","conf":"High","source":"Defense News","score":0.944,"why":"Naval combat actions raise significant kinetic military risk with potential to escalate regional tensions.","url":"https://www.defensenews.com/"},
+            {"rank":3,"title":"Iran to face 'most intense day of strikes,' Hegseth says","risk":"High","theater":"Defense","conf":"Medium","source":"Defense News","score":0.921,"why":"Parliament speaker rejection combined with warnings of intense strikes indicates high risk.","url":"https://www.defensenews.com/"},
+            {"rank":4,"title":"Australia deploys early-warning aircraft to the Middle East amid Iran attacks","risk":"Medium","theater":"Defense","conf":"High","source":"Defense News","score":0.756,"why":"Enhanced surveillance supports allied situational awareness while avoiding direct combat involvement.","url":"https://www.defensenews.com/"},
+            {"rank":5,"title":"Australian submariners have a brush with Iran war","risk":"Medium","theater":"Defense","conf":"Medium","source":"Defense News","score":0.712,"why":"Underwater combat tensions highlight risks of escalation. Allied cooperation raises stakes in maritime security.","url":"https://www.defensenews.com/"},
         ],
         "risk_points": [
             {"lat":32.5, "lng":35.5, "label":"01 · Iran–Israel Theater",           "risk":"H","score":".97","theater":"Iran–Israel","conf":"HIGH"},
@@ -356,14 +375,14 @@ def get_demo_data() -> dict:
         },
         "source_counts": {"Defense News": 6, "BBC World": 2, "Foreign Policy": 2},
         "rag_items": [
-            {"title":"Two Iranian warships take sanctuary in India and Sri Lanka","risk":"HIGH","theater":"Defense","conf":"HIGH","score":"0.944","src":"Defense News","url":"#"},
-            {"title":"Australian submariners have a brush with Iran war","risk":"MEDIUM","theater":"Defense","conf":"MEDIUM","score":"0.712","src":"Defense News","url":"#"},
-            {"title":"Iran to face most intense day of strikes, Hegseth says","risk":"HIGH","theater":"Defense","conf":"MEDIUM","score":"0.921","src":"Defense News","url":"#"},
-            {"title":"Australia deploys early-warning aircraft to the Middle East","risk":"MEDIUM","theater":"Defense","conf":"HIGH","score":"0.756","src":"Defense News","url":"#"},
-            {"title":"Amid US military actions, White House struggles to explain how Iran war will end","risk":"HIGH","theater":"Defense","conf":"HIGH","score":"0.971","src":"Defense News","url":"#"},
-            {"title":"China steps up 2026 defence budget by 7% amid purge of generals","risk":"MEDIUM","theater":"China-Taiwan","conf":"MEDIUM","score":"0.640","src":"Defense News","url":"#"},
-            {"title":"Japan shrugs off RCAF delays but moves on export rules","risk":"LOW","theater":"China-Taiwan","conf":"LOW","score":"0.310","src":"Defense News","url":"#"},
-            {"title":"US Space Force clears design milestone, advances missile-warning constellation","risk":"LOW","theater":"Defense","conf":"MEDIUM","score":"0.290","src":"Defense News","url":"#"},
+            {"title":"Two Iranian warships take sanctuary in India and Sri Lanka","risk":"HIGH","theater":"Defense","conf":"HIGH","score":"0.944","src":"Defense News","url":"https://www.defensenews.com/"},
+            {"title":"Australian submariners have a brush with Iran war","risk":"MEDIUM","theater":"Defense","conf":"MEDIUM","score":"0.712","src":"Defense News","url":"https://www.defensenews.com/"},
+            {"title":"Iran to face most intense day of strikes, Hegseth says","risk":"HIGH","theater":"Defense","conf":"MEDIUM","score":"0.921","src":"Defense News","url":"https://www.defensenews.com/"},
+            {"title":"Australia deploys early-warning aircraft to the Middle East","risk":"MEDIUM","theater":"Defense","conf":"HIGH","score":"0.756","src":"Defense News","url":"https://www.defensenews.com/"},
+            {"title":"Amid US military actions, White House struggles to explain how Iran war will end","risk":"HIGH","theater":"Defense","conf":"HIGH","score":"0.971","src":"Defense News","url":"https://www.defensenews.com/"},
+            {"title":"China steps up 2026 defence budget by 7% amid purge of generals","risk":"MEDIUM","theater":"China-Taiwan","conf":"MEDIUM","score":"0.640","src":"Defense News","url":"https://www.defensenews.com/"},
+            {"title":"Japan shrugs off RCAF delays but moves on export rules","risk":"LOW","theater":"China-Taiwan","conf":"LOW","score":"0.310","src":"Defense News","url":"https://www.defensenews.com/"},
+            {"title":"US Space Force clears design milestone, advances missile-warning constellation","risk":"LOW","theater":"Defense","conf":"MEDIUM","score":"0.290","src":"Defense News","url":"https://www.defensenews.com/"},
         ],
     }
 
@@ -376,6 +395,34 @@ if "dashboard_data" not in st.session_state:
     st.session_state.dashboard_data = get_demo_data()
 if "pipeline_ran" not in st.session_state:
     st.session_state.pipeline_ran = False
+
+# ── URL-triggered pipeline run (invoked from embedded HTML controls) ──────
+try:
+    _run_flag = str(st.query_params.get("run", "")).lower()
+except Exception:
+    _run_flag = ""
+
+if _run_flag in {"1", "true", "yes", "y"}:
+    try:
+        _n_raw = st.query_params.get("n", st.query_params.get("n_articles", 10))
+        _n = int(_n_raw) if _n_raw is not None else 10
+    except Exception:
+        _n = 10
+    _n = max(5, min(15, _n))
+
+    if PIPELINE_AVAILABLE:
+        st.session_state.dashboard_data = run_pipeline(_n)
+        st.session_state.pipeline_ran = True
+    else:
+        st.session_state.dashboard_data = get_demo_data()
+        st.session_state.pipeline_ran = False
+
+    # Clear params to avoid re-running on refresh/back.
+    try:
+        st.query_params.clear()
+    except Exception:
+        pass
+    st.rerun()
 
 # ── Sidebar control (hidden by default, accessible via Streamlit ≡ menu) ───
 with st.sidebar:
@@ -396,6 +443,17 @@ with st.sidebar:
             st.warning("Pipeline modules not available — using demo data.")
     st.markdown("---")
     st.markdown("**Mode:** " + ("🟢 Live Pipeline" if PIPELINE_AVAILABLE else "🟡 Demo Data"))
+
+# Hide sidebar + collapse toggle entirely (UI runs from embedded dashboard controls)
+st.markdown(
+    """
+<style>
+  [data-testid="collapsedControl"] { display: none !important; }
+  section[data-testid="stSidebar"] { display: none !important; }
+</style>
+""",
+    unsafe_allow_html=True,
+)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -425,5 +483,17 @@ def build_html(data: dict) -> str:
 data = st.session_state.dashboard_data
 html = build_html(data)
 
-# Render nearly full-screen; allow internal scrolling
-st.components.v1.html(html, height=1080, scrolling=True)
+_bridge_html = """
+<script>
+window.addEventListener('message', function(e) {
+  try {
+    var msg = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+    if (msg && msg.type === 'SW_RUN_PIPELINE') {
+      window.location.search = '?run=1&n=' + (msg.n||10) + (msg.theater ? '&theater='+encodeURIComponent(msg.theater) : '');
+    }
+  } catch(err) {}
+});
+</script>
+"""
+st.components.v1.html(_bridge_html, height=0)
+st.components.v1.html(html, height=980, scrolling=True)
