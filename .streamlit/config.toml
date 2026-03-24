@@ -1,6 +1,7 @@
 [server]
 headless = true
 port = 8501
+# If busy: streamlit run dashboard_app.py --server.port 8511
 # Fix macOS "Cannot start fsevents stream" watcher crash by using polling.
 fileWatcherType = "poll"
 

@@ -31,3 +31,6 @@ briefings/
 cache/
 data/last_run.json
 data/chroma/
+
+# Pipeline export artifacts (regenerated locally)
+outputs/
