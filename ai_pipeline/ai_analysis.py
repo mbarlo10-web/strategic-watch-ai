@@ -9,6 +9,12 @@ from openai import OpenAI
 # Load environment variables from .env (project root)
 load_dotenv()
 
+
+def default_openai_model() -> str:
+    """Prefer env override; gpt-4o-mini is widely available on current API accounts."""
+    return (os.getenv("OPENAI_MODEL") or "gpt-4o-mini").strip()
+
+
 def get_openai_client() -> OpenAI:
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
@@ -58,8 +64,9 @@ Content: {article.get("content")}
     )
 
 
-def analyze_article(article: Dict[str, Any], model: str = "gpt-4.1-mini") -> Dict[str, Any]:
+def analyze_article(article: Dict[str, Any], model: str | None = None) -> Dict[str, Any]:
     """Send one article to OpenAI and return structured analysis."""
+    model = model or default_openai_model()
     client = get_openai_client()
     prompt = build_article_prompt(article)
 
@@ -95,10 +102,12 @@ def analyze_article(article: Dict[str, Any], model: str = "gpt-4.1-mini") -> Dic
 
 def analyze_articles(
     articles: List[Dict[str, Any]],
-    model: str = "gpt-4.1-mini",
-    limit: int = 10,
+    model: str | None = None,
+    limit: int = 15,
+    errors_out: list | None = None,
 ) -> List[Dict[str, Any]]:
-    """Analyze multiple articles with OpenAI."""
+    """Analyze multiple articles with OpenAI. Failed items are skipped; see errors_out."""
+    model = model or default_openai_model()
     results: List[Dict[str, Any]] = []
 
     for article in articles[:limit]:
@@ -106,7 +115,10 @@ def analyze_articles(
             analysis = analyze_article(article, model=model)
             results.append(analysis)
         except Exception as exc:
+            err = f"{type(exc).__name__}: {exc}"
             print(f"[WARN] Failed to analyze article '{article.get('title')}': {exc}")
+            if errors_out is not None:
+                errors_out.append(err)
 
     return results
 

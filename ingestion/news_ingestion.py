@@ -78,9 +78,11 @@ def get_source_tier(source_name: str) -> int:
 
 
 def get_newsapi_key() -> str:
-    api_key = os.getenv("NEWSAPI_KEY")
+    api_key = os.getenv("NEWSAPI_KEY") or os.getenv("NEWS_API_KEY")
     if not api_key:
-        raise EnvironmentError("NEWSAPI_KEY not found. Please set it in your .env file.")
+        raise EnvironmentError(
+            "NEWSAPI_KEY not found. Add NEWSAPI_KEY (or NEWS_API_KEY) to your .env in the project root."
+        )
     return api_key
 
 
@@ -88,7 +90,7 @@ def fetch_articles_for_topic(
     topic_name: str,
     query: str,
     from_days_ago: int = 2,
-    page_size: int = 10,
+    page_size: int = 12,
     language: str = "en",
     sort_by: str = "publishedAt",
 ) -> List[Dict[str, Any]]:

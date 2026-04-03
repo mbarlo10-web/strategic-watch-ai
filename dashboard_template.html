@@ -144,12 +144,16 @@ body {
 /* ══════════════ LAYOUT ══════════════ */
 .layout {
   display: grid;
-  grid-template-columns: 180px 0.55fr 0.8fr;
+  /* Center column ~5% wider than 0.6/0.78; Brief column slightly narrower */
+  grid-template-columns: 180px minmax(0, 0.63fr) minmax(260px, 0.75fr);
   grid-template-rows: auto;
   margin-top: 0;
   height: auto;
   min-height: calc(100vh - 60px);
   overflow: visible;
+}
+.layout > * {
+  min-width: 0;
 }
 
 /* ── LEFT NAV ── */
@@ -339,9 +343,12 @@ body {
 
 /* ── MAP ── */
 .map-container {
-  position: relative;
-  max-width: 1120px;
+  max-width: min(100%, 1274px);
   margin: 0 auto 22px;
+}
+/* Map + overlaid legend share this box so legend sits on the canvas, not on the hint row */
+.map-stage {
+  position: relative;
   border: 1px solid var(--border);
   background: #070c18;
   border-radius: 3px;
@@ -349,8 +356,15 @@ body {
 }
 .map-canvas { width: 100%; display: block; }
 .map-legend {
-  position: absolute; bottom: 10px; left: 14px;
+  position: absolute; bottom: 10px; left: 14px; z-index: 2;
   display: flex; gap: 14px; align-items: center;
+  flex-wrap: wrap;
+  max-width: calc(100% - 28px);
+}
+.map-hint {
+  font-family: var(--mono); font-size: 9px; letter-spacing: 1px;
+  color: var(--text-dim); margin-top: 10px; padding: 0 4px; opacity: 0.88;
+  line-height: 1.45;
 }
 .map-legend-item {
   display: flex; align-items: center; gap: 5px;
@@ -607,6 +621,10 @@ body {
 .tt-title { font-size: 11px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; font-family: var(--body); }
 .tt-row { display: flex; justify-content: space-between; gap: 12px; color: var(--text-dim); font-size: 9px; margin-top: 2px; }
 
+/* World map: pan/zoom via D3 */
+#worldMap svg { cursor: grab; overflow: hidden; border-radius: 2px; }
+#worldMap svg:active { cursor: grabbing; }
+
 /* pulse animation for map markers */
 @keyframes map-pulse {
   0%   { r: 6; opacity: 0.9; }
@@ -617,9 +635,65 @@ body {
 
 /* layout adjustment for ticker */
 .layout { padding-bottom: 26px; }
+
+/* ── Pipeline loading banner (not full-screen — avoids “black screen” over the dashboard) ── */
+body.sw-loading .layout { filter: brightness(0.88) saturate(0.92); pointer-events: none; }
+body.sw-loading .ticker { opacity: 0.85; }
+body.sw-loading .header { filter: brightness(0.95); }
+.sw-loading-overlay {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+  display: none;
+  padding: 10px 18px 12px;
+  background: rgba(5,12,26,0.95);
+  border-bottom: 1px solid rgba(0,212,232,0.35);
+  box-shadow: 0 6px 28px rgba(0,0,0,0.45);
+  backdrop-filter: blur(10px);
+  pointer-events: auto;
+}
+.sw-loading-overlay.is-visible { display: block; }
+.sw-loading-inner {
+  display: flex; align-items: center; justify-content: center; gap: 18px 28px;
+  flex-wrap: wrap;
+  max-width: 1100px; margin: 0 auto;
+}
+.sw-loading-spinner {
+  width: 26px; height: 26px; flex-shrink: 0;
+  border: 2px solid rgba(0,212,232,0.2);
+  border-top-color: var(--teal);
+  border-radius: 50%;
+  animation: sw-spin 0.85s linear infinite;
+}
+.sw-loading-text {
+  flex: 1 1 280px;
+  min-width: 0;
+}
+@keyframes sw-spin { to { transform: rotate(360deg); } }
+.sw-loading-title {
+  font-family: var(--display); font-size: 11px; font-weight: 800;
+  letter-spacing: 3px; color: var(--teal); margin-bottom: 4px;
+}
+.sw-loading-sub {
+  font-family: var(--body); font-size: 13px; color: var(--text-secondary);
+  line-height: 1.4; margin-bottom: 0;
+}
+.sw-loading-meta {
+  font-family: var(--mono); font-size: 9px; letter-spacing: 1.2px;
+  color: var(--text-dim); line-height: 1.5; margin-top: 4px;
+}
 </style>
 </head>
 <body>
+
+<div id="sw-loading-overlay" class="sw-loading-overlay" aria-hidden="true">
+  <div class="sw-loading-inner">
+    <div class="sw-loading-spinner" aria-hidden="true"></div>
+    <div class="sw-loading-text">
+      <div class="sw-loading-title">PIPELINE ACTIVE</div>
+      <div class="sw-loading-sub">Ingesting feeds and running analysis. The dashboard below is your last snapshot until the new run completes.</div>
+      <div class="sw-loading-meta" id="sw-loading-last-run"></div>
+    </div>
+  </div>
+</div>
 
 <!-- FULL-WIDTH HEADER -->
 <header class="header">
@@ -706,19 +780,22 @@ body {
     <!-- CONFLICT MAP -->
     <div id="section-conflict-map" class="section-head"><h2>Conflict Map — Top 5 Risks Plotted</h2></div>
     <div class="map-container" style="margin-bottom:22px;">
-      <div class="map-label">// GLOBAL THEATER OVERVIEW · RISK LEVELS PLOTTED</div>
-      <div class="map-label-right">● HIGH &nbsp; ● MED &nbsp; ● LOW</div>
-      <div id="worldMap" style="width:100%;height:320px;position:relative;"></div>
-      <div class="map-tooltip" id="mapTooltip">
-        <div class="tt-title" id="tt-title"></div>
-        <div class="tt-row"><span id="tt-risk"></span><span id="tt-score"></span></div>
-        <div class="tt-row"><span id="tt-theater"></span><span id="tt-conf"></span></div>
+      <div class="map-stage">
+        <div class="map-label">// GLOBAL THEATER OVERVIEW · RISK LEVELS PLOTTED</div>
+        <div class="map-label-right">● HIGH &nbsp; ● MED &nbsp; ● LOW</div>
+        <div id="worldMap" style="width:100%;height:454px;position:relative;"></div>
+        <div class="map-tooltip" id="mapTooltip">
+          <div class="tt-title" id="tt-title"></div>
+          <div class="tt-row"><span id="tt-risk"></span><span id="tt-score"></span></div>
+          <div class="tt-row"><span id="tt-theater"></span><span id="tt-conf"></span></div>
+        </div>
+        <div class="map-legend">
+          <div class="map-legend-item"><div class="legend-dot" style="background:#ff3355;box-shadow:0 0 8px #ff335599"></div>HIGH RISK</div>
+          <div class="map-legend-item"><div class="legend-dot" style="background:#ff8800;box-shadow:0 0 8px #ff880099"></div>MEDIUM RISK</div>
+          <div class="map-legend-item"><div class="legend-dot" style="background:#00cc77;box-shadow:0 0 8px #00cc7799"></div>LOW RISK</div>
+        </div>
       </div>
-      <div class="map-legend">
-        <div class="map-legend-item"><div class="legend-dot" style="background:#ff3355;box-shadow:0 0 8px #ff335599"></div>HIGH RISK</div>
-        <div class="map-legend-item"><div class="legend-dot" style="background:#ff8800;box-shadow:0 0 8px #ff880099"></div>MEDIUM RISK</div>
-        <div class="map-legend-item"><div class="legend-dot" style="background:#00cc77;box-shadow:0 0 8px #00cc7799"></div>LOW RISK</div>
-      </div>
+      <div class="map-hint">Scroll or pinch to zoom · drag to pan · double-click to reset</div>
     </div>
 
     <!-- TOP 5 RISKS / INTEL FEED -->
@@ -881,39 +958,22 @@ body {
 
       <!-- BRIEF TAB -->
       <div class="panel-section active" id="tab-brief">
-        <div class="brief-date">2025-03-11 · RUN 0047 · CONFIDENCE: HIGH · SOURCES: TIER 1+2</div>
-        <div class="brief-headline">Escalating US–Iran Conflict and Regional Military Posturing Amid Rising Tensions</div>
-        <div class="brief-body">
-          Active US combat operations between the US and Iran continue to escalate, highlighted by recent US strikes and naval engagements. The White House struggles to articulate a clear exit strategy, increasing uncertainty and risk of further destabilization. Allied nations like Australia are enhancing surveillance capabilities in the Middle East while avoiding direct combat involvement. Concurrently, China is consolidating military leadership amid a defense budget increase.
-        </div>
+        <div class="brief-date">—</div>
+        <div class="brief-headline">—</div>
+        <div class="brief-body">—</div>
 
         <div class="brief-sub-head">// Regional Updates</div>
-        <div class="brief-region">
-          <div class="brief-region-name high">Middle East — High Risk</div>
-          <div class="brief-region-text">The US–Iran conflict intensifies with active strikes and naval engagements. Regional actors like Australia increase surveillance support, while Iran rejects ceasefire efforts, raising the risk of broader conflict.</div>
-        </div>
-        <div class="brief-region">
-          <div class="brief-region-name high">Indian Ocean — High Risk</div>
-          <div class="brief-region-text">Iranian warships seeking sanctuary in India and Sri Lanka complicate regional diplomacy and security. These developments increase the risk of maritime conflict spillover.</div>
-        </div>
-        <div class="brief-region">
-          <div class="brief-region-name med">Asia–Pacific — Medium Risk</div>
-          <div class="brief-region-text">Japan advances defense mobilization without immediate escalation. China's military leadership purge and budget increase signal possible strategic recalibration.</div>
-        </div>
+        <div id="brief-regions"></div>
 
         <div class="brief-sub-head">// Strategic Outlook</div>
-        <div class="brief-body" style="margin-bottom:0">
-          The US–Iran conflict remains the primary driver of regional instability, with active combat and strikes likely to continue in the near term. Monitoring these dynamics is critical to anticipating potential conflict spillovers.
-        </div>
+        <div class="brief-body" style="margin-bottom:0">—</div>
 
         <div class="divider"></div>
         <div class="conf-card">
           <div class="conf-level">HIGH</div>
-          <div class="conf-details">
-            BRIEF FIDELITY: 0.88<br>
-            SOURCES: TIER 1 + TIER 2<br>
-            LAST RUN: 13:47 UTC<br>
-            ARTICLES ANALYZED: 10
+          <div class="conf-details" id="brief-conf-details">
+            LAST RUN: —<br>
+            ARTICLES ANALYZED: —
           </div>
         </div>
       </div>
@@ -921,30 +981,7 @@ body {
       <!-- ESCALATION TAB -->
       <div class="panel-section" id="tab-escalation">
         <div class="brief-sub-head" style="margin-top:0">// Flagged for Escalation Potential</div>
-        <div class="escalation-item">
-          <div class="esc-icon">▲</div>
-          <div class="esc-text">Potential for further US–Iran naval clashes in the Indian Ocean and Persian Gulf.</div>
-        </div>
-        <div class="escalation-item">
-          <div class="esc-icon">▲</div>
-          <div class="esc-text">Risk of miscalculation in underwater operations involving allied submarines near Iran.</div>
-        </div>
-        <div class="escalation-item">
-          <div class="esc-icon">▲</div>
-          <div class="esc-text">Iran ceasefire rejection and US retaliation signals indicate high probability of continued kinetic action.</div>
-        </div>
-        <div class="escalation-item med">
-          <div class="esc-icon">●</div>
-          <div class="esc-text">China's military leadership purge may lead to assertive regional posturing in the South China Sea.</div>
-        </div>
-        <div class="escalation-item med">
-          <div class="esc-icon">●</div>
-          <div class="esc-text">Possible separation of conflict if Iran rejects ceasefire and retaliates to US strikes with broader regional assets.</div>
-        </div>
-        <div class="escalation-item med">
-          <div class="esc-icon">●</div>
-          <div class="esc-text">Australia's enhanced surveillance posture signals growing allied commitment in the Middle East theater.</div>
-        </div>
+        <div id="escalation-items"></div>
 
         <div class="divider"></div>
         <div class="brief-sub-head">// Theater Risk Index</div>
@@ -1016,8 +1053,8 @@ body {
       <div class="field">
         <div class="field-label">Articles to analyze</div>
         <div class="field-row">
-          <input class="range" id="pipelineN" type="range" min="5" max="15" step="1" value="10">
-          <div class="range-val" id="pipelineNVal">10</div>
+          <input class="range" id="pipelineN" type="range" min="5" max="15" step="1" value="15">
+          <div class="range-val" id="pipelineNVal">15</div>
         </div>
       </div>
       <div class="modal-actions">
@@ -1036,8 +1073,8 @@ body {
 <div class="ticker">
   <div class="ticker-label">// LIVE FEED</div>
   <div class="ticker-track">
-    <span class="ticker-inner">
-      DEFENSE NEWS RSS ACTIVE &nbsp;·&nbsp; NEWSAPI TIER-2 ONLINE &nbsp;·&nbsp; OPENAI CLASSIFICATION PIPELINE NOMINAL &nbsp;·&nbsp; LAST RUN: 2025-03-11T13:47:22Z &nbsp;·&nbsp; SOURCES: DEFENSE NEWS · DEPT OF WAR RSS · REUTERS · AP · BBC · AL JAZEERA &nbsp;·&nbsp; 10 ARTICLES ANALYZED &nbsp;·&nbsp; 3 HIGH · 4 MEDIUM · 3 LOW &nbsp;·&nbsp; GLOBAL TREND: ESCALATING ▲ &nbsp;·&nbsp; NEXT AUTO-RUN: T+06:00:00 &nbsp;·&nbsp; CLASSIFICATION: UNCLASSIFIED // OSINT &nbsp;·&nbsp; STRATEGIC WATCH AI v1.0 · ASU MS-AIB
+    <span class="ticker-inner" id="ticker-dynamic">
+      STRATEGIC WATCH AI — OSINT PIPELINE · RUN INTELLIGENCE UPDATE TO REFRESH FEEDS
     </span>
   </div>
 </div>
@@ -1047,6 +1084,23 @@ body {
 
 // ── KPI Header ────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+
+  const _m0 = PIPELINE_DATA.meta || {};
+  if (_m0.loading) {
+    document.body.classList.add('sw-loading');
+    const ov = document.getElementById('sw-loading-overlay');
+    if (ov) {
+      ov.classList.add('is-visible');
+      ov.setAttribute('aria-hidden', 'false');
+    }
+    const lrEl = document.getElementById('sw-loading-last-run');
+    if (lrEl) {
+      const run = _m0.run_at_utc || _m0.run_timestamp || '';
+      lrEl.textContent = run
+        ? `LAST SNAPSHOT · ${run}`
+        : '// Awaiting first run — showing placeholder data';
+    }
+  }
 
   let currentTheater = null;
 
@@ -1108,8 +1162,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── Executive Brief ────────────────────────────────────────────────────
   const brief = PIPELINE_DATA.brief;
   const briefDate = document.querySelector('.brief-date');
+  const mMeta = PIPELINE_DATA.meta || {};
+  const runIso = mMeta.run_at_utc || mMeta.run_timestamp || '';
   if (briefDate) briefDate.textContent =
-    `${PIPELINE_DATA.meta.run_timestamp} · RUN · CONFIDENCE: ${PIPELINE_DATA.meta.confidence.toUpperCase()} · SOURCES: TIER 1+2`;
+    `${runIso} · RUN · CONFIDENCE: ${(mMeta.confidence || 'High').toUpperCase()} · SOURCES: TIER 1+2`;
 
   const briefHead = document.querySelector('.brief-headline');
   if (briefHead) briefHead.textContent = brief.headline;
@@ -1118,14 +1174,44 @@ document.addEventListener('DOMContentLoaded', () => {
   if (briefBodies[0]) briefBodies[0].textContent = brief.summary;
   if (briefBodies[1]) briefBodies[1].textContent = brief.outlook;
 
-  // Regional updates
+  // Regional updates (requires #brief-regions in markup)
   const regContainer = document.querySelector('#brief-regions');
-  if (regContainer && brief.regional) {
-    regContainer.innerHTML = brief.regional.map(r => `
+  if (regContainer && brief.regional && brief.regional.length) {
+    regContainer.innerHTML = brief.regional.map(r => {
+      const rk = String(r.risk || '').toLowerCase();
+      const rc = rk === 'high' ? 'high' : rk === 'low' ? 'low' : 'med';
+      return `
       <div class="brief-region">
-        <div class="brief-region-name ${r.risk.toLowerCase()}">${r.name} — ${r.risk} Risk</div>
+        <div class="brief-region-name ${rc}">${r.name} — ${r.risk} Risk</div>
         <div class="brief-region-text">${r.text}</div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
+  } else if (regContainer) {
+    regContainer.innerHTML = '<div class="brief-region-text" style="opacity:0.7">// No regional lines in this brief.</div>';
+  }
+
+  const confEl = document.getElementById('brief-conf-details');
+  if (confEl) {
+    const tot = mMeta.total != null ? mMeta.total : '—';
+    confEl.innerHTML =
+      'SOURCES: TIER 1 + TIER 2<br>' +
+      'LAST RUN (UTC): ' + (runIso || '—') + '<br>' +
+      'ARTICLES ANALYZED: ' + tot;
+  }
+
+  const tickerEl = document.getElementById('ticker-dynamic');
+  if (tickerEl) {
+    const sc = PIPELINE_DATA.source_counts || {};
+    const srcKeys = Object.keys(sc);
+    const srcPart = srcKeys.length ? srcKeys.slice(0, 8).join(' · ') : 'RSS + NEWSAPI + OPENAI';
+    const tr = (mMeta.trend || 'Stable');
+    tickerEl.textContent =
+      'LAST RUN ' + (runIso || '—') +
+      ' · ' + (mMeta.total != null ? mMeta.total : '—') + ' ARTICLES' +
+      ' · ' + (mMeta.high_count != null ? mMeta.high_count : '—') + ' HIGH' +
+      ' · TREND ' + String(tr).toUpperCase() +
+      ' · SOURCES: ' + srcPart +
+      ' · STRATEGIC WATCH AI';
   }
 
   // ── Top 5 Risk Cards ──────────────────────────────────────────────────
@@ -1261,7 +1347,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function closeModal() { if (modal) { modal.classList.remove('open'); modal.setAttribute('aria-hidden','true'); } }
 
   if (nRange && nVal) {
-    nVal.textContent = String(nRange.value || 10);
+    nVal.textContent = String(nRange.value || 15);
     nRange.addEventListener('input', () => { nVal.textContent = String(nRange.value); });
   }
 
@@ -1273,18 +1359,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (runBtn) {
     runBtn.addEventListener('click', () => {
-      const n = nRange ? parseInt(nRange.value||'10',10) : 10;
+      const n = nRange ? parseInt(nRange.value||'15',10) : 15;
       const theater = theaterSel ? (theaterSel.value||'') : '';
       closeModal();
       const btn = document.getElementById('pipelineShortcut');
       if (btn) { btn.textContent = '⟳ RUNNING...'; btn.disabled = true; }
-      const msg = {type:'SW_RUN_PIPELINE', n: isNaN(n)?10:n, theater:theater};
+      const msg = {type:'SW_RUN_PIPELINE', n: isNaN(n)?15:n, theater:theater};
       try { window.parent.postMessage(JSON.stringify(msg), '*'); } catch(e){}
       try {
         const qs = new URLSearchParams();
-        qs.set('run','1'); qs.set('n',String(isNaN(n)?10:n));
+        qs.set('run','1'); qs.set('n',String(isNaN(n)?15:n));
         if (theater) qs.set('theater',theater);
-        window.parent.location.search = '?'+qs.toString();
+        const target = window.top || window.parent;
+        target.location.search = '?' + qs.toString();
       } catch(e) {
         setTimeout(()=>{ if(btn){btn.textContent='RUN INTELLIGENCE UPDATE';btn.disabled=false;}},3000);
       }
@@ -1456,16 +1543,71 @@ const riskPoints = [
 ];
 const RCOL = { H: '#ff3355', M: '#ff8800', L: '#00cc77' };
 
+/** Bounding box around risk points for fitExtent; null = use full-world framing */
+function bboxFeatureFromPoints(pts) {
+  if (!pts || !pts.length) return null;
+  const lngs = pts.map(p => Number(p.lng)).filter(x => !isNaN(x));
+  const lats = pts.map(p => Number(p.lat)).filter(x => !isNaN(x));
+  if (!lngs.length || !lats.length) return null;
+  let minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
+  let minLat = Math.min(...lats), maxLat = Math.max(...lats);
+  const minSpan = 7;
+  if (maxLng - minLng < minSpan) {
+    const c = (minLng + maxLng) / 2;
+    minLng = c - minSpan / 2;
+    maxLng = c + minSpan / 2;
+  }
+  if (maxLat - minLat < minSpan) {
+    const c = (minLat + maxLat) / 2;
+    minLat = c - minSpan / 2;
+    maxLat = c + minSpan / 2;
+  }
+  const lngSpan = maxLng - minLng;
+  const latSpan = maxLat - minLat;
+  if (lngSpan > 95 || latSpan > 52) return null;
+  return {
+    type: 'Feature',
+    properties: {},
+    geometry: {
+      type: 'Polygon',
+      coordinates: [[
+        [minLng, minLat],
+        [maxLng, minLat],
+        [maxLng, maxLat],
+        [minLng, maxLat],
+        [minLng, minLat]
+      ]]
+    }
+  };
+}
+
+function riskPointsFitFeature(points) {
+  if (!points || !points.length) return null;
+  let f = bboxFeatureFromPoints(points);
+  if (f) return f;
+  const high = points.filter(p => p.risk === 'H');
+  f = bboxFeatureFromPoints(high);
+  if (f) return f;
+  const hm = points.filter(p => p.risk === 'H' || p.risk === 'M');
+  f = bboxFeatureFromPoints(hm);
+  if (f) return f;
+  return bboxFeatureFromPoints(points.slice(0, 3));
+}
+
 function buildMap() {
   const container = document.getElementById('worldMap');
-  const W = container.clientWidth, H = 320;
+  const W = container.clientWidth;
+  const H = Math.max(1, container.clientHeight);
+  const pad = 40;
   container.innerHTML = '';
 
   const svg = d3.select('#worldMap').append('svg')
     .attr('width', W).attr('height', H)
-    .style('display','block');
+    .attr('viewBox', `0 0 ${W} ${H}`)
+    .style('display', 'block')
+    .style('touch-action', 'none');
 
-  // Ocean background
+  // Ocean background + map content live in mapG so d3.zoom can transform them together
   const defs = svg.append('defs');
   const oceanGrad = defs.append('linearGradient').attr('id','oceanGrad').attr('x1','0%').attr('y1','0%').attr('x2','0%').attr('y2','100%');
   oceanGrad.append('stop').attr('offset','0%').attr('stop-color','#040c1c');
@@ -1478,19 +1620,43 @@ function buildMap() {
   feMerge.append('feMergeNode').attr('in','blur');
   feMerge.append('feMergeNode').attr('in','SourceGraphic');
 
-  svg.append('rect').attr('width',W).attr('height',H).attr('fill','url(#oceanGrad)');
+  const mapG = svg.append('g').attr('class', 'map-zoom-layer');
 
-  // Graticule grid
-  const projection = d3.geoNaturalEarth1().scale((W / 640) * 100).translate([W/2, H/2]);
+  mapG.append('rect').attr('width', W).attr('height', H).attr('fill', 'url(#oceanGrad)');
+
+  const projection = d3.geoNaturalEarth1();
   const path = d3.geoPath().projection(projection);
+  const fitFeat = riskPointsFitFeature(riskPoints);
+  if (fitFeat) {
+    try {
+      projection.fitExtent([[pad, pad], [W - pad, H - pad]], fitFeat);
+    } catch (e) {
+      projection.scale((W / 640) * 100).translate([W / 2, H / 2]);
+    }
+  } else {
+    projection.scale((W / 640) * 100).translate([W / 2, H / 2]);
+  }
   const graticule = d3.geoGraticule().step([30, 30]);
 
-  svg.append('path').datum(graticule()).attr('d', path)
+  mapG.append('path').datum(graticule()).attr('d', path)
     .attr('fill','none').attr('stroke','rgba(0,180,210,0.08)').attr('stroke-width','0.5');
 
   // Sphere outline
-  svg.append('path').datum({type:'Sphere'}).attr('d', path)
+  mapG.append('path').datum({type:'Sphere'}).attr('d', path)
     .attr('fill','none').attr('stroke','rgba(0,180,210,0.15)').attr('stroke-width','1');
+
+  const zoom = d3.zoom()
+    .scaleExtent([0.35, 28])
+    .on('zoom', (event) => {
+      mapG.attr('transform', event.transform);
+    });
+
+  svg.call(zoom);
+  svg.on('dblclick.zoom', null);
+  svg.on('dblclick', (event) => {
+    event.preventDefault();
+    svg.transition().duration(280).call(zoom.transform, d3.zoomIdentity);
+  });
 
   // Load world TopoJSON from CDN
   d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json').then(world => {
@@ -1498,7 +1664,7 @@ function buildMap() {
     const borders   = topojson.mesh(world, world.objects.countries, (a,b) => a !== b);
 
     // Country fills
-    svg.append('g').selectAll('path')
+    mapG.append('g').selectAll('path')
       .data(countries.features)
       .join('path')
       .attr('d', path)
@@ -1507,7 +1673,7 @@ function buildMap() {
       .attr('stroke-width', '0.5');
 
     // Country borders
-    svg.append('path').datum(borders).attr('d', path)
+    mapG.append('path').datum(borders).attr('d', path)
       .attr('fill','none')
       .attr('stroke','rgba(0,200,230,0.15)')
       .attr('stroke-width','0.3');
@@ -1518,9 +1684,9 @@ function buildMap() {
 
     riskPoints.forEach((r, i) => {
       const [px, py] = projection([r.lng, r.lat]);
-      if (!px || !py) return;
+      if (px == null || py == null || Number.isNaN(px) || Number.isNaN(py)) return;
       const col = RCOL[r.risk];
-      const g = svg.append('g').attr('transform',`translate(${px},${py})`).style('cursor','crosshair');
+      const g = mapG.append('g').attr('transform',`translate(${px},${py})`).style('cursor','crosshair');
 
       // Outer pulse ring (CSS animated)
       g.append('circle').attr('r', 18).attr('fill','none')
@@ -1566,7 +1732,7 @@ function buildMap() {
 
   }).catch(() => {
     // Fallback message if CDN fails
-    svg.append('text').attr('x',W/2).attr('y',H/2)
+    mapG.append('text').attr('x',W/2).attr('y',H/2)
       .attr('text-anchor','middle').attr('fill','rgba(0,200,230,0.3)')
       .attr('font-family','IBM Plex Mono,monospace').attr('font-size','11')
       .text('// MAP DATA LOADING — CHECK NETWORK CONNECTION');

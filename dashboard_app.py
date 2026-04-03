@@ -10,8 +10,10 @@ Usage:
 """
 
 import streamlit as st
+import base64
 import json
 import os
+from datetime import datetime, timezone
 from pathlib import Path
 
 # Load .env from project root so it works regardless of where streamlit is run from
@@ -29,7 +31,7 @@ PIPELINE_ERROR = None
 try:
     from ingestion.news_ingestion import fetch_news
     from ingestion.defense_rss import fetch_defense_rss
-    from ingestion.relevance_filter import filter_relevant
+    from ingestion.relevance_filter import balance_sources, filter_relevant
     from ai_pipeline.ai_analysis import analyze_articles
     from ai_pipeline.risk_scoring import score_and_rank
     from briefing.brief_generator import generate_brief
@@ -60,8 +62,10 @@ def _save_last_run(data: dict) -> None:
     """Persist dashboard data so we can show it when feeds return no articles."""
     try:
         DATA_DIR.mkdir(parents=True, exist_ok=True)
-        from datetime import datetime
-        out = {**data, "cached_at": datetime.utcnow().isoformat() + "Z"}
+        out = {
+            **data,
+            "cached_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        }
         LAST_RUN_CACHE.write_text(json.dumps(out, indent=2, default=str), encoding="utf-8")
     except Exception as e:
         print(f"[CACHE] Could not save last run: {e}")
@@ -78,6 +82,20 @@ def _load_last_run() -> dict | None:
         return None
 
 
+def _auto_pipeline_on_startup() -> bool:
+    """
+    If true, session start runs the full pipeline after one quick paint (two-phase flow).
+    Default false: show last cached run or demo immediately — avoids a long blank/black
+    Streamlit frame while the pipeline blocks (output is only sent when the script ends).
+    Set STRATEGIC_WATCH_AUTO_PIPELINE=1 in .env to restore auto-run on open.
+    """
+    return os.getenv("STRATEGIC_WATCH_AUTO_PIPELINE", "0").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+    )
+
+
 # ── Page config — must be first Streamlit call ─────────────────────────────
 st.set_page_config(
     page_title="Strategic Watch AI",
@@ -90,8 +108,7 @@ st.set_page_config(
 st.markdown(
     """
 <style>
-  /* Hide Streamlit chrome (header, toolbar, menu, footer) for full-bleed dashboard */
-  header { visibility: hidden; }
+  /* Hide Streamlit chrome (toolbar, menu, footer) for full-bleed dashboard */
   #MainMenu { visibility: hidden; }
   footer { visibility: hidden; }
   [data-testid="stHeader"] { display: none; }
@@ -99,9 +116,18 @@ st.markdown(
   [data-testid="stDecoration"] { display: none; }
   [data-testid="stStatusWidget"] { display: none; }
 
+  /* Do not hide [data-testid="stSpinner"] — on some Streamlit versions that hides the main view. */
+
+  /* Match dashboard chrome so gaps around the iframe are not pure black */
+  .stApp { background: #05070f !important; }
+  [data-testid="stAppViewContainer"] {
+    padding: 0 !important;
+    background: #05070f !important;
+    min-height: 100vh !important;
+  }
+
   /* Remove internal padding so the HTML dashboard can sit flush */
   .block-container { padding: 0 !important; max-width: 100% !important; }
-  [data-testid="stAppViewContainer"] { padding: 0 !important; }
 </style>
 """,
     unsafe_allow_html=True,
@@ -120,14 +146,16 @@ def run_pipeline(n_articles: int = 10) -> dict:
     and error message so the UI always renders.
     """
     try:
-        with st.spinner("Fetching intelligence feeds..."):
-            rss_articles   = fetch_defense_rss()
-            news_articles  = fetch_news()
-            all_articles   = rss_articles + news_articles
-            filtered       = filter_relevant(all_articles)[:n_articles]
-            print(f"[PIPELINE] RSS={len(rss_articles)}, NewsAPI={len(news_articles)}, after filter={len(filtered)}")
-            if len(news_articles) == 0 and len(rss_articles) > 0:
-                print("[PIPELINE] NewsAPI returned 0 articles. Add NEWSAPI_KEY to .env for Russia-Ukraine, Iran-Israel, etc. RSS-only gives Defense theater only.")
+        # Intentionally no st.spinner(): spinner covers the whole app with a black overlay
+        # and hides the embedded dashboard (last-run snapshot + HTML loading overlay).
+        rss_articles   = fetch_defense_rss()
+        news_articles  = fetch_news()
+        # NewsAPI first so relevance-ordered pool is not RSS-heavy before slicing
+        all_articles   = news_articles + rss_articles
+        filtered       = balance_sources(filter_relevant(all_articles), n_articles)
+        print(f"[PIPELINE] RSS={len(rss_articles)}, NewsAPI={len(news_articles)}, after filter+mix={len(filtered)}")
+        if len(news_articles) == 0 and len(rss_articles) > 0:
+            print("[PIPELINE] NewsAPI returned 0 articles. Add NEWSAPI_KEY to .env for Russia-Ukraine, Iran-Israel, etc. RSS-only gives Defense theater only.")
 
         if not filtered:
             print(f"[PIPELINE] No articles to analyze: RSS={len(rss_articles)}, NewsAPI={len(news_articles)}, after filter={len(filtered)}. Check .env and connectivity.")
@@ -151,29 +179,41 @@ def run_pipeline(n_articles: int = 10) -> dict:
             )
             return build_dashboard_data([], "Stable", [], brief, [])
 
-        with st.spinner("Running AI analysis..."):
-            print(f"[PIPELINE] Sending {len(filtered)} articles to OpenAI for analysis...")
-            analyzed = analyze_articles(filtered)
-            print(f"[PIPELINE] AI returned {len(analyzed)} analyzed articles.")
+        print(f"[PIPELINE] Sending {len(filtered)} articles to OpenAI for analysis...")
+        _ai_errors: list = []
+        analyzed = analyze_articles(
+            filtered,
+            limit=len(filtered),
+            errors_out=_ai_errors,
+        )
+        print(f"[PIPELINE] AI returned {len(analyzed)} analyzed articles.")
 
         if not analyzed:
-            print(f"[PIPELINE] No analyses: {len(filtered)} articles fetched but OpenAI returned 0. Check OPENAI_API_KEY.")
+            err_hint = ""
+            if _ai_errors:
+                err_hint = " First error: " + _ai_errors[0][:400]
+                print(f"[PIPELINE] OpenAI errors (sample): {_ai_errors[0]}")
+            print(
+                "[PIPELINE] No analyses: articles were fetched but every OpenAI call failed. "
+                "Run: python verify_intel_sources.py"
+            )
             brief = generate_brief([], "Stable")
             brief["executive_summary"] = (
                 "Articles were fetched but AI analysis returned no results. "
-                "Check OPENAI_API_KEY in .env and that the OpenAI API is reachable."
+                "Confirm OPENAI_API_KEY in .env, billing/credits, and model access. "
+                "Optional: set OPENAI_MODEL=gpt-4o-mini in .env. "
+                "Run `python verify_intel_sources.py` in the project folder for a full check."
+                + err_hint
             )
             return build_dashboard_data([], "Stable", [], brief, [])
 
-        with st.spinner("Scoring and ranking risks..."):
-            top5, trend, escalation_items = score_and_rank(analyzed)
-            if top5:
-                print("[PIPELINE] Top5 sample URLs:")
-                for item in top5[:3]:
-                    print("   -", (item.get("title") or "")[:60], "=>", item.get("url") or "(no url)")
+        top5, trend, escalation_items = score_and_rank(analyzed)
+        if top5:
+            print("[PIPELINE] Top5 sample URLs:")
+            for item in top5[:3]:
+                print("   -", (item.get("title") or "")[:60], "=>", item.get("url") or "(no url)")
 
-        with st.spinner("Generating executive brief..."):
-            brief = generate_brief(top5, trend)
+        brief = generate_brief(top5, trend)
 
         data = build_dashboard_data(top5, trend, escalation_items, brief, analyzed)
         _save_last_run(data)
@@ -277,14 +317,17 @@ def build_dashboard_data(top5, trend, escalation_items, brief, all_analyzed) -> 
         src = (item.get("source") or "Other").strip()
         source_counts[src] = source_counts.get(src, 0) + 1
 
+    run_at_utc = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     return {
         "meta": {
             "high_count":    high_count,
             "esc_count":     esc_count,
             "total":         len(all_analyzed),
             "trend":         trend,
-            "run_timestamp": brief.get("date", ""),
+            "run_timestamp": brief.get("date", "") or run_at_utc[:10],
+            "run_at_utc":    run_at_utc,
             "confidence":    brief.get("overall_confidence", "High"),
+            "loading":       False,
         },
         "brief": {
             "headline":      brief.get("headline", ""),
@@ -330,8 +373,11 @@ def get_demo_data() -> dict:
     return {
         "meta": {
             "high_count": 3, "esc_count": 6, "total": 10,
-            "trend": "Escalating", "run_timestamp": "2025-03-11T13:47Z",
+            "trend": "Escalating",
+            "run_timestamp": "2025-03-11T13:47Z",
+            "run_at_utc": "2025-03-11T13:47:47Z",
             "confidence": "High",
+            "loading": False,
         },
         "brief": {
             "headline":   "Escalating US–Iran Conflict and Regional Military Posturing Amid Rising Tensions",
@@ -404,10 +450,10 @@ except Exception:
 
 if _run_flag in {"1", "true", "yes", "y"}:
     try:
-        _n_raw = st.query_params.get("n", st.query_params.get("n_articles", 10))
-        _n = int(_n_raw) if _n_raw is not None else 10
+        _n_raw = st.query_params.get("n", st.query_params.get("n_articles", 15))
+        _n = int(_n_raw) if _n_raw is not None else 15
     except Exception:
-        _n = 10
+        _n = 15
     _n = max(5, min(15, _n))
 
     if PIPELINE_AVAILABLE:
@@ -417,6 +463,12 @@ if _run_flag in {"1", "true", "yes", "y"}:
         st.session_state.dashboard_data = get_demo_data()
         st.session_state.pipeline_ran = False
 
+    _dd = st.session_state.dashboard_data
+    if isinstance(_dd, dict):
+        _dd.setdefault("meta", {})["loading"] = False
+
+    st.session_state.pipeline_auto_run_done = True
+
     # Clear params to avoid re-running on refresh/back.
     try:
         st.query_params.clear()
@@ -424,10 +476,48 @@ if _run_flag in {"1", "true", "yes", "y"}:
         pass
     st.rerun()
 
+# ── First load of session ────────────────────────────────────────────────────
+# Default (STRATEGIC_WATCH_AUTO_PIPELINE unset/0): show last run or demo at once — no
+# blocking pipeline on open, so Streamlit never sits on an empty frame for minutes.
+# Set STRATEGIC_WATCH_AUTO_PIPELINE=1 for two-phase: quick paint + loading banner, then
+# pipeline on the next run (previous paint should stay visible while the script runs).
+if not st.session_state.get("pipeline_auto_run_done"):
+    if not _auto_pipeline_on_startup():
+        _cached = _load_last_run()
+        if _cached:
+            st.session_state.dashboard_data = {
+                k: v for k, v in _cached.items() if k != "cached_at"
+            }
+        st.session_state.dashboard_data.setdefault("meta", {})["loading"] = False
+        st.session_state.pipeline_auto_run_done = True
+    elif not st.session_state.get("_sw_load_interstitial"):
+        _cached = _load_last_run()
+        if _cached:
+            st.session_state.dashboard_data = {
+                k: v for k, v in _cached.items() if k != "cached_at"
+            }
+        else:
+            st.session_state.dashboard_data = get_demo_data()
+        st.session_state.dashboard_data.setdefault("meta", {})["loading"] = True
+        st.session_state._sw_load_interstitial = True
+        st.session_state._sw_pending_interstitial_rerun = True
+    else:
+        st.session_state._sw_load_interstitial = False
+        if PIPELINE_AVAILABLE:
+            try:
+                st.session_state.dashboard_data = run_pipeline(15)
+                st.session_state.pipeline_ran = True
+            except Exception as e:  # noqa: BLE001
+                print(f"[AUTO-RUN] Pipeline failed, keeping prior dashboard data: {e}")
+        _dd = st.session_state.dashboard_data
+        if isinstance(_dd, dict):
+            _dd.setdefault("meta", {})["loading"] = False
+        st.session_state.pipeline_auto_run_done = True
+
 # ── Sidebar control (hidden by default, accessible via Streamlit ≡ menu) ───
 with st.sidebar:
     st.markdown("### ⚙️ Pipeline Controls")
-    n_articles = st.slider("Articles to analyze", 5, 15, 10)
+    n_articles = st.slider("Articles to analyze", 5, 15, 15)
     if PIPELINE_ERROR:
         st.error(f"Pipeline imports failed: {PIPELINE_ERROR}")
     if st.button("▶ Run Intelligence Update", type="primary"):
@@ -435,6 +525,9 @@ with st.sidebar:
             try:
                 st.session_state.dashboard_data = run_pipeline(n_articles)
                 st.session_state.pipeline_ran = True
+                _dd = st.session_state.dashboard_data
+                if isinstance(_dd, dict):
+                    _dd.setdefault("meta", {})["loading"] = False
                 st.success("Pipeline complete.")
                 st.rerun()
             except Exception as e:  # noqa: BLE001
@@ -463,14 +556,22 @@ st.markdown(
 def build_html(data: dict) -> str:
     """
     Reads the dashboard HTML template and injects Python data as JSON.
-    The template uses __DASHBOARD_DATA__ as its injection point.
+    The template uses __PIPELINE_DATA_INJECTION__ as its injection point.
+
+    Data is embedded as base64-decoded UTF-8 JSON so article titles/summaries that
+    contain the literal sequence </script> cannot break the iframe's <script> block.
     """
     template_path = Path(__file__).parent / "dashboard_template.html"
     html = template_path.read_text(encoding="utf-8")
 
-    # Inject data as a JS variable at the top of the script block
-    data_json = json.dumps(data, ensure_ascii=False, indent=2)
-    injection = f"const PIPELINE_DATA = {data_json};\n"
+    payload = json.dumps(data, ensure_ascii=False, indent=2)
+    b64 = base64.b64encode(payload.encode("utf-8")).decode("ascii")
+    injection = (
+        "const PIPELINE_DATA = JSON.parse("
+        'new TextDecoder("utf-8").decode('
+        f'Uint8Array.from(atob("{b64}"), function (c) {{ return c.charCodeAt(0); }}))'
+        ");\n"
+    )
     html = html.replace("/* __PIPELINE_DATA_INJECTION__ */", injection)
 
     return html
@@ -485,15 +586,36 @@ html = build_html(data)
 
 _bridge_html = """
 <script>
-window.addEventListener('message', function(e) {
-  try {
-    var msg = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
-    if (msg && msg.type === 'SW_RUN_PIPELINE') {
-      window.location.search = '?run=1&n=' + (msg.n||10) + (msg.theater ? '&theater='+encodeURIComponent(msg.theater) : '');
+(function () {
+  var topWin = window.top || window.parent;
+  function applyRun(msg) {
+    if (!msg || msg.type !== 'SW_RUN_PIPELINE') return;
+    var n = msg.n || 15;
+    var qs = '?run=1&n=' + encodeURIComponent(n);
+    if (msg.theater) qs += '&theater=' + encodeURIComponent(msg.theater);
+    try { topWin.location.search = qs; } catch (e1) {
+      try { window.parent.location.search = qs; } catch (e2) {}
     }
-  } catch(err) {}
-});
+  }
+  window.addEventListener('message', function (e) {
+    try {
+      var msg = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+      applyRun(msg);
+    } catch (err) {}
+  });
+  try {
+    window.parent.addEventListener('message', function (e) {
+      try {
+        var msg = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+        applyRun(msg);
+      } catch (err) {}
+    });
+  } catch (err) {}
+})();
 </script>
 """
 st.components.v1.html(_bridge_html, height=0)
 st.components.v1.html(html, height=980, scrolling=True)
+
+if st.session_state.pop("_sw_pending_interstitial_rerun", False):
+    st.rerun()

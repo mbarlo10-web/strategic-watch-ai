@@ -109,14 +109,19 @@ Analyzed reporting:
     )
 
 
+def _brief_model() -> str:
+    return (os.getenv("OPENAI_MODEL") or "gpt-4o-mini").strip()
+
+
 def generate_executive_brief(
     analyses: List[Dict[str, Any]],
-    model: str = "gpt-4.1-mini",
+    model: str | None = None,
 ) -> Dict[str, Any]:
     """Generate a structured executive brief from analyzed articles."""
     if not analyses:
         raise ValueError("No analyses provided. Cannot generate brief.")
 
+    model = model or _brief_model()
     client = get_openai_client()
     prompt = build_brief_prompt(analyses)
 
